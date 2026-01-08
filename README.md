@@ -4,7 +4,7 @@ Project for the course Affective Computing (AA. 2025/26)
 
 
 
-# ECN from EEGs
+# Effective Connectivity Networks from Causal Analysis on EEGs
 
 Objectives
 
