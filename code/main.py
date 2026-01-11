@@ -1,17 +1,13 @@
 #%% imports
-import mne
+from functions import *
 
-#%%
-eeg_file = r"../dataset/derivatives/sub-002/eeg/sub-002_task-eyesclosed_eeg.set"
-eeg = mne.io.read_raw_eeglab(eeg_file, preload=True)
-print(eeg.info)
-eeg.plot()
+#%% load and segment
+filepath = r"../dataset/derivatives/sub-005/eeg/sub-005_task-eyesclosed_eeg.set"
+eeg, fs, ch_names = load_eeg(filepath, preload=True)
 
-eeg_file = r"../dataset/derivatives/sub-004/eeg/sub-004_task-eyesclosed_eeg.set"
-eeg = mne.io.read_raw_eeglab(eeg_file, preload=True)
-print(eeg.info)
-eeg.plot()
+epochs = split_epochs(eeg, n_epochs=10) # split into 10 equal segments
+print(epochs.shape)
 
-#%%
+#%% save results
 from utils.io import save_all_open_figures
 save_all_open_figures()
