@@ -2,106 +2,274 @@ import numpy as np
 from statsmodels.tsa.stattools import grangercausalitytests
 import warnings
 warnings.filterwarnings("ignore")
+import pandas as pd
+from statsmodels.tsa.api import VAR
+from statsmodels.tsa.stattools import adfuller, kpss
 
-def aggregate_granger(epochs, maxlag=4, alpha=0.05):
+#%% https://www.statsmodels.org/dev/generated/statsmodels.tsa.stattools.grangercausalitytests.html
+# def aggregate_granger(epochs, maxlag=4, alpha=0.05):
+#     """
+#     Compute aggregated Granger adjacency for all epochs.
+
+#     Returns
+#     -------
+#     mean_pvals : ndarray, shape (n_channels, n_channels)
+#     binary_adj : ndarray, shape (n_channels, n_channels)
+#     """
+
+#     n_epochs, n_channels, _ = epochs.shape
+#     all_pvals = np.zeros((n_epochs, n_channels, n_channels))
+
+#     for idx in range(n_epochs):
+#         print('epoch: ', idx)
+#         all_pvals[idx] = granger_ecn_epoch(epochs[idx], maxlag=maxlag, alpha=alpha)
+#         binary_adj = (all_pvals[idx] < alpha).astype(int) # ************************************************
+
+#     mean_pvals = np.mean(all_pvals, axis=0)
+
+#     # binary adjacency: 1 if mean p < significance level
+#     binary_adj = (mean_pvals < alpha).astype(int)
+
+#     return mean_pvals, binary_adj
+
+
+# def granger_ecn_epoch(epoch, maxlag=10, alpha=0.05):
+#     """
+#     Compute Granger causality adjacency matrix for an EEG epoch.
+
+#     Parameters
+#     ----------
+#     epoch : ndarray, shape (n_channels, n_samples_epoch)
+#     maxlag : int
+#     alpha : float
+#         Significance level
+
+#     Returns
+#     -------
+#     adj_matrix : ndarray, shape (n_channels, n_channels)
+#         p-values (or binary adjacency)
+#     """
+
+#     n_channels, _ = epoch.shape
+#     adj_matrix = np.ones((n_channels, n_channels))
+
+#     print(f"- channels: ", end=' ', flush=True)
+#     for i in range(n_channels):
+#         for j in range(n_channels):
+            
+#             if not i == j:
+#                 print(f"({i}, {j})", end=' ', flush=True)    
+#                 p_val, f_stat = granger_pairwise(
+#                     epoch[i], epoch[j], maxlag=maxlag
+#                 )
+#                 # p-values come from best lag
+#                 adj_matrix[i, j] = p_val
+
+#     print(' ')
+
+#     return adj_matrix
+
+
+# def granger_pairwise(x, y, maxlag=10, verbose=False):
+#     """
+#     Test if x Granger-causes y.
+
+#     Parameters
+#     ----------
+#     x, y : 1D arrays
+#         Time series signals of the same length
+#     maxlag : int
+#         Maximum lag to test
+#     verbose : bool
+#         Whether to print statsmodels output
+
+#     Returns
+#     -------
+#     best_pvalue : float
+#         Best (smallest) p-value among lags 1..maxlag
+#     best_f_stat : float
+#         Corresponding F statistic
+#     """
+
+#     # concatenate per statsmodels API
+#     data = np.column_stack([y, x])
+#     results = grangercausalitytests(data, maxlag=maxlag, verbose=verbose)
+
+#     # extract best p-value across tested lags
+#     best_pvalue = np.inf
+#     best_f_stat = 0
+
+#     for lag, test_res in results.items():
+#         f_stat = test_res[0]["ssr_ftest"][0]
+#         p_value = test_res[0]["ssr_ftest"][1]
+
+#         if p_value < best_pvalue:
+#             best_pvalue = p_value
+#             best_f_stat = f_stat
+
+#     return best_pvalue, best_f_stat
+
+
+#%% https://phdinds-aim.github.io/time_series_handbook/04_GrangerCausality/04_GrangerCausality.html
+def granger_ecn(epochs, maxlag=4, alpha=0.05):
     """
-    Compute aggregated Granger adjacency for all epochs.
+    Compute Granger ECN for one subject by aggregating across epochs.
+
+    Parameters
+    ----------
+    epochs : ndarray, shape (n_epochs, n_channels, n_samples)
+    maxlag : int
+    alpha : float
 
     Returns
     -------
-    mean_pvals : ndarray, shape (n_channels, n_channels)
-    binary_adj : ndarray, shape (n_channels, n_channels)
+    mean_pvals : ndarray (n_channels, n_channels)
+    binary_adj : ndarray (n_channels, n_channels)
     """
 
     n_epochs, n_channels, _ = epochs.shape
     all_pvals = np.zeros((n_epochs, n_channels, n_channels))
 
-    for idx in range(n_epochs):
-        print('epoch: ', idx)
-        all_pvals[idx] = granger_ecn_epoch(epochs[idx], maxlag=maxlag, alpha=alpha)
-        binary_adj = (all_pvals[idx] < alpha).astype(int) # ************************************************
+    for e, epoch in enumerate(epochs):
+        # 1. Make epoch stationary
+        stat_epoch, diffs = make_epoch_stationary(epoch, alpha=alpha)
 
+        # 2. Apply Granger VAR
+        pvals = granger_var_epoch(
+            stat_epoch,
+            maxlag=maxlag,
+            alpha=alpha
+        )
+
+        all_pvals[e] = pvals
+
+    # 3. Aggregate across epochs
     mean_pvals = np.mean(all_pvals, axis=0)
 
-    # binary adjacency: 1 if mean p < significance level
+    # 4. ECN adjacency (binary)
     binary_adj = (mean_pvals < alpha).astype(int)
 
     return mean_pvals, binary_adj
 
 
-def granger_ecn_epoch(epoch, maxlag=10, alpha=0.05):
+def granger_var_epoch(stat_epoch, maxlag=4, alpha=0.05):
     """
-    Compute Granger causality adjacency matrix for an EEG epoch.
+    Compute Granger causality adjacency matrix for one stationary epoch
+    using a multivariate VAR model.
 
     Parameters
     ----------
-    epoch : ndarray, shape (n_channels, n_samples_epoch)
+    stat_epoch : ndarray, shape (n_channels, n_samples)
+        Stationary EEG epoch
     maxlag : int
+        Fixed VAR order
     alpha : float
         Significance level
 
     Returns
     -------
-    adj_matrix : ndarray, shape (n_channels, n_channels)
-        p-values (or binary adjacency)
+    pval_matrix : ndarray, shape (n_channels, n_channels)
+        Granger causality p-values (i -> j)
     """
 
-    n_channels, _ = epoch.shape
-    adj_matrix = np.ones((n_channels, n_channels))
+    n_channels, _ = stat_epoch.shape
 
-    print(f"- channels: ", end=' ', flush=True)
+    # VAR expects (time, variables)
+    df = pd.DataFrame(stat_epoch.T)
+
+    model = VAR(df)
+    results = model.fit(maxlags=maxlag, ic=None)
+
+    pval_matrix = np.ones((n_channels, n_channels))
+
     for i in range(n_channels):
         for j in range(n_channels):
-            
-            if not i == j:
-                print(f"({i}, {j})", end=' ', flush=True)    
-                p_val, f_stat = granger_pairwise(
-                    epoch[i], epoch[j], maxlag=maxlag
-                )
-                # p-values come from best lag
-                adj_matrix[i, j] = p_val
+            if i == j:
+                continue
 
-    print(' ')
+            # Test: does channel i Granger-cause channel j?
+            test = results.test_causality(
+                caused=j,
+                causing=[i],
+                kind="f"
+            )
+            pval_matrix[i, j] = test.pvalue
 
-    return adj_matrix
+    return pval_matrix
 
 
-def granger_pairwise(x, y, maxlag=10, verbose=False):
+def make_epoch_stationary(epoch, alpha=0.05, max_diff=2):
     """
-    Test if x Granger-causes y.
+    Make all channels in an epoch stationary.
+    Input:
+      epoch : ndarray, shape (n_channels, n_samples)
+      alpha: confidence interval
+      max_diff: max number of differentiation
+    Returns:
+      station_epoch : ndarray, shape (n_channels, <reduced_samples>)
+      diffs_list : list of int applied per channel
+    """
+    n_channels, _ = epoch.shape
+    processed = []
+    diffs_list = []
 
-    Parameters
-    ----------
-    x, y : 1D arrays
-        Time series signals of the same length
-    maxlag : int
-        Maximum lag to test
-    verbose : bool
-        Whether to print statsmodels output
+    for ch in range(n_channels):
+        series = epoch[ch]
+        stat, diffs = make_stationary(series, alpha=alpha, max_diff=max_diff)
+        processed.append(stat)
+        diffs_list.append(diffs)
+
+    # Find minimum length after differencing
+    min_len = min([len(x) for x in processed])
+    processed_truncated = np.array(
+        [x[-min_len :] for x in processed]
+    )
+
+    return processed_truncated, diffs_list
+
+
+def make_stationary(series, max_diff=2, alpha=0.05):
+    """
+    Iteratively difference the series until it is stationary
+    according to both ADF and KPSS tests, or until max_diff is reached.
 
     Returns
     -------
-    best_pvalue : float
-        Best (smallest) p-value among lags 1..maxlag
-    best_f_stat : float
-        Corresponding F statistic
+    stationary_series : ndarray
+    diffs_applied : int
     """
+    diffs = 0
+    current = series.copy()
 
-    # concatenate per statsmodels API
-    data = np.column_stack([y, x])
-    results = grangercausalitytests(data, maxlag=maxlag, verbose=verbose)
+    while diffs < max_diff:
+        adf_stat, adf_p = adf_test(current, alpha=alpha)
+        kpss_stat, kpss_p = kpss_test(current, alpha=alpha)
 
-    # extract best p-value across tested lags
-    best_pvalue = np.inf
-    best_f_stat = 0
+        # Series is stationary if ADF rejects unit root and KPSS does NOT reject stationarity
+        if adf_stat and kpss_stat:
+            break
 
-    for lag, test_res in results.items():
-        f_stat = test_res[0]["ssr_ftest"][0]
-        p_value = test_res[0]["ssr_ftest"][1]
+        # Otherwise difference once
+        current = np.diff(current)
+        diffs += 1
 
-        if p_value < best_pvalue:
-            best_pvalue = p_value
-            best_f_stat = f_stat
+    return current, diffs
 
-    return best_pvalue, best_f_stat
 
+def adf_test(series, alpha=0.05):
+    """
+    Augmented Dickey-Fuller test.
+    Returns True if series is stationary (i.e., ADF rejects unit root).
+    """
+    result = adfuller(series, autolag="AIC")
+    pvalue = result[1]
+    return pvalue < alpha, pvalue
+
+
+def kpss_test(series, alpha=0.05, regression="ct"):
+    """
+    KPSS test.
+    Returns True if series is stationary (i.e., KPSS DOES NOT reject stationarity).
+    """
+    statistic, pvalue, _, _ = kpss(series, regression=regression, nlags="auto")
+    return pvalue > alpha, pvalue
