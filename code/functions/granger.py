@@ -132,7 +132,7 @@ def granger_ecn(epochs, maxlag=4, alpha=0.05):
 
     for e, epoch in enumerate(epochs):
         # 1. Make epoch stationary
-        stat_epoch, diffs = make_epoch_stationary(epoch, alpha=alpha)
+        stat_epoch = make_epoch_stationary(epoch, alpha=alpha)
 
         # 2. Apply Granger VAR
         pvals = granger_var_epoch(
@@ -207,17 +207,15 @@ def make_epoch_stationary(epoch, alpha=0.05, max_diff=2):
       max_diff: max number of differentiation
     Returns:
       station_epoch : ndarray, shape (n_channels, <reduced_samples>)
-      diffs_list : list of int applied per channel
     """
     n_channels, _ = epoch.shape
     processed = []
     diffs_list = []
 
-    for ch in range(n_channels):
-        series = epoch[ch]
-        stat, diffs = make_stationary(series, alpha=alpha, max_diff=max_diff)
-        processed.append(stat)
-        diffs_list.append(diffs)
+    epoch_df = pd.DataFrame(epoch.T)
+
+    stat = make_stationary(epoch_df, alpha=alpha, max_diff=max_diff)
+    processed.append(stat)
 
     # Find minimum length after differencing
     min_len = min([len(x) for x in processed])
@@ -225,51 +223,122 @@ def make_epoch_stationary(epoch, alpha=0.05, max_diff=2):
         [x[-min_len :] for x in processed]
     )
 
-    return processed_truncated, diffs_list
+    return processed_truncated
 
 
-def make_stationary(series, max_diff=2, alpha=0.05):
+def make_stationary(series_df, max_diff=2, alpha=0.05):
     """
-    Iteratively difference the series until it is stationary
-    according to both ADF and KPSS tests, or until max_diff is reached.
+    Iteratively difference the series until they are all stationary
+    according to both ADF and KPSS tests.
 
     Returns
     -------
-    stationary_series : ndarray
-    diffs_applied : int
+    epoch_df (pd dataframe) : 
     """
-    diffs = 0
-    current = series.copy()
+    epoch_df = series_df.copy()
 
-    while diffs < max_diff:
-        adf_stat, adf_p = adf_test(current, alpha=alpha)
-        kpss_stat, kpss_p = kpss_test(current, alpha=alpha)
+    stationary_channels = {} # ch : (True|False)
+
+    while True:
+        print('adf test...')
+        adf = adf_test(epoch_df)#, alpha=alpha)
+        print('kpss test...')
+        kpss = kpss_test(epoch_df)#, alpha=alpha)
 
         # Series is stationary if ADF rejects unit root and KPSS does NOT reject stationarity
-        if adf_stat and kpss_stat:
-            break
+        for ch in epoch_df.columns:
+            # check adf
+            if (abs(adf[ch]['Test statistic']) > abs(adf[ch]['Critical value - 1%'])):
+                adf_stationarity = True # reject null hp -> series is stationary :)
+            else:
+                adf_stationarity = False
+            
+            # check kpss
+            if (abs(kpss[ch]['Test statistic']) > abs(kpss[ch]['Critical value - 1%'])):
+                kpss_stationarity = False # reject null hp -> series is NOT stationary :(
+            else:
+                kpss_stationarity = True
 
-        # Otherwise difference once
-        current = np.diff(current)
-        diffs += 1
+            if adf_stationarity==False or kpss_stationarity==False:
+                # apply differencing on this channel
+                print(f"differencing channel {ch}")
+                epoch_df[ch] = epoch_df[ch] - epoch_df[ch].shift(1)
+                epoch_df = epoch_df.dropna() # drop rows with NaN values
+                
+                stationary_channels[ch] = False
+            else:
+                stationary_channels[ch] = True
+        
+        if all(stationary_channels.values()): break # if all channels are stationary (True), break
 
-    return current, diffs
+    return epoch_df
 
 
-def adf_test(series, alpha=0.05):
+def adf_test(data_df):
     """
     Augmented Dickey-Fuller test.
-    Returns True if series is stationary (i.e., ADF rejects unit root).
+    Null hp: time series is NOT stationary (i.e., a unit root is present).
+    
+    :param data_df: all channels time series
     """
-    result = adfuller(series, autolag="AIC")
-    pvalue = result[1]
-    return pvalue < alpha, pvalue
+    test_stat, p_val = [], []
+    cv_1pct, cv_5pct, cv_10pct = [], [], [] # critical values
+    for c in data_df.columns: 
+        adf_res = adfuller(data_df[c].dropna())
+        test_stat.append(adf_res[0]) # always negative
+        p_val.append(adf_res[1])
+        cv_1pct.append(adf_res[4]['1%']) # always negative
+        cv_5pct.append(adf_res[4]['5%'])
+        cv_10pct.append(adf_res[4]['10%'])
+    adf_res_df = pd.DataFrame({'Test statistic': test_stat, 
+                               'p-value': p_val, 
+                               'Critical value - 1%': cv_1pct,
+                               'Critical value - 5%': cv_5pct,
+                               'Critical value - 10%': cv_10pct}, 
+                             index=data_df.columns).T
+    adf_res_df = adf_res_df.round(4)
+    return adf_res_df
 
+# def adf_test(series, alpha=0.05):
+#     """
+#     Augmented Dickey-Fuller test.
+#     Returns True if series is stationary (i.e., ADF rejects unit root).
+#     """
+#     result = adfuller(series, autolag="AIC")
+#     pvalue = result[1]
+#     return pvalue < alpha, pvalue
 
-def kpss_test(series, alpha=0.05, regression="ct"):
+def kpss_test(data_df):
     """
     KPSS test.
-    Returns True if series is stationary (i.e., KPSS DOES NOT reject stationarity).
+    Null hp: time series is stationary.
+    
+    :param data_df: all channels time series
     """
-    statistic, pvalue, _, _ = kpss(series, regression=regression, nlags="auto")
-    return pvalue > alpha, pvalue
+    test_stat, p_val = [], []
+    cv_1pct, cv_2p5pct, cv_5pct, cv_10pct = [], [], [], [] # critical values
+    for c in data_df.columns: 
+        kpss_res = kpss(data_df[c].dropna(), regression='ct')
+        test_stat.append(kpss_res[0]) # always positive
+        p_val.append(kpss_res[1])
+        cv_1pct.append(kpss_res[3]['1%']) # always positive
+        cv_2p5pct.append(kpss_res[3]['2.5%'])
+        cv_5pct.append(kpss_res[3]['5%'])
+        cv_10pct.append(kpss_res[3]['10%'])
+    kpss_res_df = pd.DataFrame({'Test statistic': test_stat, 
+                               'p-value': p_val, 
+                               'Critical value - 1%': cv_1pct,
+                               'Critical value - 2.5%': cv_2p5pct,
+                               'Critical value - 5%': cv_5pct,
+                               'Critical value - 10%': cv_10pct}, 
+                             index=data_df.columns).T
+    kpss_res_df = kpss_res_df.round(4)
+    return kpss_res_df
+
+# def kpss_test(series, alpha=0.05, regression="ct"):
+    # """
+    # KPSS test.
+    # Returns True if series is stationary (i.e., KPSS DOES NOT reject stationarity).
+    # """
+#     statistic, pvalue, _, _ = kpss(series, regression=regression, nlags="auto")
+#     return pvalue > alpha, pvalue
