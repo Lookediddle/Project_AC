@@ -5,6 +5,7 @@ warnings.filterwarnings("ignore")
 import pandas as pd
 from statsmodels.tsa.api import VAR
 from statsmodels.tsa.stattools import adfuller, kpss
+import matplotlib.pyplot as plt
 
 #%% https://www.statsmodels.org/dev/generated/statsmodels.tsa.stattools.grangercausalitytests.html
 # def aggregate_granger(epochs, maxlag=4, alpha=0.05):
@@ -111,7 +112,7 @@ from statsmodels.tsa.stattools import adfuller, kpss
 
 
 #%% https://phdinds-aim.github.io/time_series_handbook/04_GrangerCausality/04_GrangerCausality.html
-def granger_ecn(epochs, maxlag=4, alpha=0.05):
+def granger_ecn(epochs, maxlag=7, alpha=0.05):
     """
     Compute Granger ECN for one subject by aggregating across epochs.
 
@@ -131,15 +132,20 @@ def granger_ecn(epochs, maxlag=4, alpha=0.05):
     all_pvals = np.zeros((n_epochs, n_channels, n_channels))
 
     for e, epoch in enumerate(epochs):
-        # 1. Make epoch stationary
-        stat_epoch = make_epoch_stationary(epoch, alpha=alpha)
+        # 1. make epoch stationary
+        epoch_df = pd.DataFrame(epoch.T)
+        #epoch_df, n_diffs = make_stationary(epoch_df) # *****da scommentare*****
 
-        # 2. Apply Granger VAR
-        pvals = granger_var_epoch(
-            stat_epoch,
-            maxlag=maxlag,
-            alpha=alpha
-        )
+        # 2. VAR model (Vector AutoRegressive)
+        train_df, test_df = splitter(epoch_df) # split the data into train and test sets
+        select_p(train_df) # select the VAR order p by computing the different multivariate information criteria (AIC, BIC, HQIC), and FPE
+        p = maxlag
+        model = VAR(train_df)
+        var_model = model.fit(p) # fit the VAR model with the chosen order
+
+        # 3. Apply Granger
+        print('Computing Granger causation matrix...')
+        pvals = granger_causation_matrix(train_df, train_df.columns, p)
 
         all_pvals[e] = pvals
 
@@ -198,52 +204,28 @@ def granger_var_epoch(stat_epoch, maxlag=4, alpha=0.05):
     return pval_matrix
 
 
-def make_epoch_stationary(epoch, alpha=0.05, max_diff=2):
+
+def make_stationary(series_df):
     """
     Make all channels in an epoch stationary.
-    Input:
-      epoch : ndarray, shape (n_channels, n_samples)
-      alpha: confidence interval
-      max_diff: max number of differentiation
-    Returns:
-      station_epoch : ndarray, shape (n_channels, <reduced_samples>)
-    """
-    n_channels, _ = epoch.shape
-    processed = []
-    diffs_list = []
-
-    epoch_df = pd.DataFrame(epoch.T)
-
-    stat = make_stationary(epoch_df, alpha=alpha, max_diff=max_diff)
-    processed.append(stat)
-
-    # Find minimum length after differencing
-    min_len = min([len(x) for x in processed])
-    processed_truncated = np.array(
-        [x[-min_len :] for x in processed]
-    )
-
-    return processed_truncated
-
-
-def make_stationary(series_df, max_diff=2, alpha=0.05):
-    """
     Iteratively difference the series until they are all stationary
     according to both ADF and KPSS tests.
 
     Returns
     -------
-    epoch_df (pd dataframe) : 
+    epoch_df (pd dataframe) : time series (n_channels, n_samples)
+    n_diffs (int) : number of times that differencing is applied
     """
     epoch_df = series_df.copy()
 
     stationary_channels = {} # ch : (True|False)
+    n_diffs = 0
 
     while True:
         print('adf test...')
-        adf = adf_test(epoch_df)#, alpha=alpha)
+        adf = adf_test(epoch_df)
         print('kpss test...')
-        kpss = kpss_test(epoch_df)#, alpha=alpha)
+        kpss = kpss_test(epoch_df)
 
         # Series is stationary if ADF rejects unit root and KPSS does NOT reject stationarity
         for ch in epoch_df.columns:
@@ -266,12 +248,13 @@ def make_stationary(series_df, max_diff=2, alpha=0.05):
                 epoch_df = epoch_df.dropna() # drop rows with NaN values
                 
                 stationary_channels[ch] = False
+                n_diffs += 1
             else:
                 stationary_channels[ch] = True
         
         if all(stationary_channels.values()): break # if all channels are stationary (True), break
 
-    return epoch_df
+    return epoch_df, n_diffs
 
 
 def adf_test(data_df):
@@ -299,18 +282,10 @@ def adf_test(data_df):
     adf_res_df = adf_res_df.round(4)
     return adf_res_df
 
-# def adf_test(series, alpha=0.05):
-#     """
-#     Augmented Dickey-Fuller test.
-#     Returns True if series is stationary (i.e., ADF rejects unit root).
-#     """
-#     result = adfuller(series, autolag="AIC")
-#     pvalue = result[1]
-#     return pvalue < alpha, pvalue
 
 def kpss_test(data_df):
     """
-    KPSS test.
+    Kwiatkowski-Phillips-Schmidt-Shin test.
     Null hp: time series is stationary.
     
     :param data_df: all channels time series
@@ -335,10 +310,66 @@ def kpss_test(data_df):
     kpss_res_df = kpss_res_df.round(4)
     return kpss_res_df
 
-# def kpss_test(series, alpha=0.05, regression="ct"):
-    # """
-    # KPSS test.
-    # Returns True if series is stationary (i.e., KPSS DOES NOT reject stationarity).
-    # """
-#     statistic, pvalue, _, _ = kpss(series, regression=regression, nlags="auto")
-#     return pvalue > alpha, pvalue
+
+# VAR model processing
+def splitter(data_df):
+    """
+    Split data into train and test, 80% and 20% respectively. 
+    
+    :param data_df: time series to split.
+    """
+    end = round(len(data_df)*.8)
+    train_df = data_df[:end]
+    test_df = data_df[end:]
+    return train_df, test_df
+
+def select_p(train_df):
+    """
+    Show some metrics to select the order of the VAR model (i.e. number of lags)
+    
+    :param train_df: time series data.
+    """
+    aic, bic, fpe, hqic = [], [], [], []
+    model = VAR(train_df) 
+    p = np.arange(1,20)
+    for i in p:
+        result = model.fit(i)
+        aic.append(result.aic)
+        bic.append(result.bic)
+        fpe.append(result.fpe)
+        hqic.append(result.hqic)
+    lags_metrics_df = pd.DataFrame({'AIC': aic, 
+                                    'BIC': bic, 
+                                    'HQIC': hqic,
+                                    'FPE': fpe}, 
+                                   index=p)    
+    fig, ax = plt.subplots(1, 4, figsize=(15, 3), sharex=True)
+    lags_metrics_df.plot(subplots=True, ax=ax, marker='o')
+    plt.tight_layout()
+    print(lags_metrics_df.idxmin(axis=0))
+
+
+def granger_causation_matrix(data, variables, p, test = 'ssr_chi2test', verbose=False):    
+    """Check Granger Causality of all possible combinations of the time series.
+    The rows are the response variables, columns are predictors. The values in the table 
+    are the P-Values. P-Values lesser than the significance level (0.05), implies 
+    the Null Hypothesis that the coefficients of the corresponding past values is 
+    zero, that is, the X does not cause Y can be rejected.
+
+    data      : pandas dataframe containing the time series variables
+    variables : list containing names of the time series variables.
+    """
+    df = pd.DataFrame(np.zeros((len(variables), len(variables))), columns=variables, index=variables)
+    
+    print(f"- channels: ", end=' ', flush=True)
+    for c in df.columns:
+        for r in df.index:
+            print(f"({c}->{r})", end=' ', flush=True)
+            test_result = grangercausalitytests(data[[r, c]], p, verbose=False)
+            p_values = [round(test_result[i+1][0][test][1],4) for i in range(p)]
+            if verbose: print(f'Y = {r}, X = {c}, P Values = {p_values}')
+            min_p_value = np.min(p_values)
+            df.loc[r, c] = min_p_value
+    df.columns = [str(var) + '_x' for var in variables]
+    df.index = [str(var) + '_y' for var in variables]
+    return df
