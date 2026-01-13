@@ -25,7 +25,7 @@ def load_eeg(filepath, preload=True):
 
     raw = mne.io.read_raw_eeglab(filepath, preload=preload, verbose=False)
     #print(raw.info) # general infos
-    #raw.plot()
+    raw.plot()
 
     eeg_data = raw.get_data() # shape (n_channels, n_samples)
     sfreq = raw.info["sfreq"] # Fs

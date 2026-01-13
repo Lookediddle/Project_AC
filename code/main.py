@@ -2,7 +2,7 @@
 from functions import *
 
 #%% load and segment
-filepath = r"../dataset/derivatives/sub-005/eeg/sub-005_task-eyesclosed_eeg.set"
+filepath = r"../dataset/derivatives/sub-072/eeg/sub-072_task-eyesclosed_eeg.set"
 eeg, fs, ch_names = load_eeg(filepath, preload=True)
 
 epochs = split_epochs(eeg, n_epochs=10) # split into 10 equal segments
