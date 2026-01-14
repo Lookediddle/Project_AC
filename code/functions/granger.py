@@ -8,112 +8,8 @@ from statsmodels.tsa.stattools import adfuller, kpss
 import matplotlib.pyplot as plt
 plt.ion() # plt.show() not blocking execution
 
-#%% https://www.statsmodels.org/dev/generated/statsmodels.tsa.stattools.grangercausalitytests.html
-# def aggregate_granger(epochs, maxlag=4, alpha=0.05):
-#     """
-#     Compute aggregated Granger adjacency for all epochs.
-
-#     Returns
-#     -------
-#     mean_pvals : ndarray, shape (n_channels, n_channels)
-#     binary_adj : ndarray, shape (n_channels, n_channels)
-#     """
-
-#     n_epochs, n_channels, _ = epochs.shape
-#     all_pvals = np.zeros((n_epochs, n_channels, n_channels))
-
-#     for idx in range(n_epochs):
-#         print('epoch: ', idx)
-#         all_pvals[idx] = granger_ecn_epoch(epochs[idx], maxlag=maxlag, alpha=alpha)
-#         binary_adj = (all_pvals[idx] < alpha).astype(int) # ************************************************
-
-#     mean_pvals = np.mean(all_pvals, axis=0)
-
-#     # binary adjacency: 1 if mean p < significance level
-#     binary_adj = (mean_pvals < alpha).astype(int)
-
-#     return mean_pvals, binary_adj
-
-
-# def granger_ecn_epoch(epoch, maxlag=10, alpha=0.05):
-#     """
-#     Compute Granger causality adjacency matrix for an EEG epoch.
-
-#     Parameters
-#     ----------
-#     epoch : ndarray, shape (n_channels, n_samples_epoch)
-#     maxlag : int
-#     alpha : float
-#         Significance level
-
-#     Returns
-#     -------
-#     adj_matrix : ndarray, shape (n_channels, n_channels)
-#         p-values (or binary adjacency)
-#     """
-
-#     n_channels, _ = epoch.shape
-#     adj_matrix = np.ones((n_channels, n_channels))
-
-#     print(f"- channels: ", end=' ', flush=True)
-#     for i in range(n_channels):
-#         for j in range(n_channels):
-            
-#             if not i == j:
-#                 print(f"({i}, {j})", end=' ', flush=True)    
-#                 p_val, f_stat = granger_pairwise(
-#                     epoch[i], epoch[j], maxlag=maxlag
-#                 )
-#                 # p-values come from best lag
-#                 adj_matrix[i, j] = p_val
-
-#     print(' ')
-
-#     return adj_matrix
-
-
-# def granger_pairwise(x, y, maxlag=10, verbose=False):
-#     """
-#     Test if x Granger-causes y.
-
-#     Parameters
-#     ----------
-#     x, y : 1D arrays
-#         Time series signals of the same length
-#     maxlag : int
-#         Maximum lag to test
-#     verbose : bool
-#         Whether to print statsmodels output
-
-#     Returns
-#     -------
-#     best_pvalue : float
-#         Best (smallest) p-value among lags 1..maxlag
-#     best_f_stat : float
-#         Corresponding F statistic
-#     """
-
-#     # concatenate per statsmodels API
-#     data = np.column_stack([y, x])
-#     results = grangercausalitytests(data, maxlag=maxlag, verbose=verbose)
-
-#     # extract best p-value across tested lags
-#     best_pvalue = np.inf
-#     best_f_stat = 0
-
-#     for lag, test_res in results.items():
-#         f_stat = test_res[0]["ssr_ftest"][0]
-#         p_value = test_res[0]["ssr_ftest"][1]
-
-#         if p_value < best_pvalue:
-#             best_pvalue = p_value
-#             best_f_stat = f_stat
-
-#     return best_pvalue, best_f_stat
-
-
-#%% https://phdinds-aim.github.io/time_series_handbook/04_GrangerCausality/04_GrangerCausality.html
-def granger_ecn(epochs, maxlag=7, alpha=0.05):
+#%% ref: https://phdinds-aim.github.io/time_series_handbook/04_GrangerCausality/04_GrangerCausality.html
+def granger_ecn(epochs, maxlag=6, alpha=0.05):
     """
     Compute Granger ECN for one subject by aggregating across epochs.
 
@@ -133,26 +29,24 @@ def granger_ecn(epochs, maxlag=7, alpha=0.05):
     all_pvals = np.zeros((n_epochs, n_channels, n_channels))
 
     for e, epoch in enumerate(epochs):
-        print(f"\nepoch: {e}")
-        # 1. make epoch stationary
+        print(f"\n-- epoch: {e} --")
         epoch_df = pd.DataFrame(epoch.T)
-        epoch_df, n_diffs = make_stationary(epoch_df) # *****da scommentare*****
 
-        # 2. VAR model (Vector AutoRegressive) ************************LASCIARE SOLO SELECT(P) E COMMENTARE TUTTO IL RESTO? NON SERVE A UN CAZZO IL VAR SU TRAIN E TEST???**********
-        #train_df, test_df = splitter(epoch_df) # split the data into train and test sets
+        # 1. make epoch stationary
+        print('stationariety')
+        epoch_df, n_diffs = make_stationary(epoch_df) 
+
+        # 2. select maxlag from multivariate time series
         print('selecting maxlag...')
-        select_p(epoch_df) #train_df) # select the VAR order p by computing the different multivariate information criteria (AIC, BIC, HQIC), and FPE
-        p = maxlag
-        #model = VAR(train_df)
-        #var_model = model.fit(p) # fit the VAR model with the chosen order
+        select_p(epoch_df) # select the VAR (Vector AutoRegressive) model order p (i.e. maxlag) from plots' elbows
 
-        # 3. Apply Granger
+        # 3. apply Granger
         print('Computing Granger causation matrix...')
-        pvals = granger_causation_matrix(epoch_df, epoch_df.columns, p) #train_df, train_df.columns, p)
+        pvals = granger_causation_matrix(epoch_df, epoch_df.columns, maxlag) 
 
         all_pvals[e] = pvals
 
-    # 4. Aggregate across epochs
+    # 4. aggregate across epochs
     mean_pvals = np.mean(all_pvals, axis=0)
 
     # 5. ECN adjacency (binary)
@@ -168,9 +62,13 @@ def make_stationary(series_df):
     Iteratively difference the series until they are all stationary
     according to both ADF and KPSS tests.
 
+    Parameters
+    -------
+    series_df (pd DataFrame) : multivariate time series (n_samples, n_channels)
+
     Returns
     -------
-    epoch_df (pd dataframe) : time series (n_channels, n_samples)
+    epoch_df (pd DataFrame) : multivariate time series (n_samples, n_channels)
     n_diffs (int) : number of times that differencing is applied
     """
     epoch_df = series_df.copy()
@@ -179,9 +77,9 @@ def make_stationary(series_df):
     n_diffs = 0
 
     while True:
-        print('adf test...')
+        print(' - adf test...')
         adf = adf_test(epoch_df)
-        print('kpss test...')
+        print(' - kpss test...')
         kpss = kpss_test(epoch_df)
 
         # Series is stationary if ADF rejects unit root and KPSS does NOT reject stationarity
@@ -204,7 +102,7 @@ def make_stationary(series_df):
 
             if adf_stationarity==False or kpss_stationarity==False:
                 # apply differencing on this channel
-                print(f"differencing channel {ch}")
+                print(f" - differencing channel {ch}...")
                 epoch_df[ch] = epoch_df[ch] - epoch_df[ch].shift(1)
                 epoch_df = epoch_df.dropna() # drop rows with NaN values
                 
@@ -223,7 +121,7 @@ def adf_test(data_df):
     Augmented Dickey-Fuller test.
     Null hp: time series is NOT stationary (i.e., a unit root is present).
     
-    :param data_df: all channels time series
+    data_df (DataFrame): multivariate time series (n_samples, n_channels)
     """
     test_stat, p_val = [], []
     cv_1pct, cv_5pct, cv_10pct = [], [], [] # critical values
@@ -249,7 +147,7 @@ def kpss_test(data_df):
     Kwiatkowski-Phillips-Schmidt-Shin test.
     Null hp: time series is stationary.
     
-    :param data_df: all channels time series
+    data_df (DataFrame): multivariate time series (n_samples, n_channels)
     """
     test_stat, p_val = [], []
     cv_1pct, cv_2p5pct, cv_5pct, cv_10pct = [], [], [], [] # critical values
@@ -273,25 +171,16 @@ def kpss_test(data_df):
 
 
 # VAR model processing
-def splitter(data_df):
+def select_p(data_df):
     """
-    Split data into train and test, 80% and 20% respectively. 
-    
-    :param data_df: time series to split.
-    """
-    end = round(len(data_df)*.8)
-    train_df = data_df[:end]
-    test_df = data_df[end:]
-    return train_df, test_df
+    Show metrics to select the order p of the VAR model (i.e. number of lags),
+    e.g. when the curves do an elbow.
+    Metrics correspond to different multivariate information criteria (AIC, BIC, HQIC), and FPE.
 
-def select_p(train_df):
-    """
-    Show some metrics to select the order of the VAR model (i.e. number of lags)
-    
-    :param train_df: time series data.
+    data_df (DataFrame) : time series data.
     """
     aic, bic, fpe, hqic = [], [], [], []
-    model = VAR(train_df) 
+    model = VAR(data_df) 
     p = np.arange(1,20)
     for i in p:
         result = model.fit(i)
@@ -312,16 +201,23 @@ def select_p(train_df):
     print(lags_metrics_df.idxmin(axis=0))
 
 # Granger 
-def granger_causation_matrix(data, variables, p, test = 'ssr_chi2test', verbose=False):    
-    """Check Granger Causality of all possible combinations of the time series.
-    The rows are the response variables, columns are predictors. The values in the table 
-    are the P-Values. P-Values lesser than the significance level (0.05), implies 
+def granger_causation_matrix(data, variables, maxlag, test = 'ssr_chi2test', verbose=False):    
+    """
+    Check Granger Causality of all possible combinations of the time series (pairwise).
+    The rows are the response variables, columns are predictors. The values in the returned table 
+    are the P-Values. P-Values lesser than the significance level (e.g. 0.05), implies 
     the Null Hypothesis that the coefficients of the corresponding past values is 
-    zero, that is, the X does not cause Y can be rejected.
+    zero, i.e. the 'X does not cause Y' can be rejected.
 
+    Parameters
+    -----------
     data      : pandas dataframe containing the time series variables
     variables : list containing names of the time series variables.
-    p : maxlag (int).
+    maxlag (int) : maximum number of lags.
+
+    Returns
+    -----------
+    df (DataFrame) : table of resulting p-values.
     """
     df = pd.DataFrame(np.zeros((len(variables), len(variables))), columns=variables, index=variables)
     
@@ -329,8 +225,8 @@ def granger_causation_matrix(data, variables, p, test = 'ssr_chi2test', verbose=
     for c in df.columns:
         for r in df.index:
             print(f"({c}->{r})", end=' ', flush=True)
-            test_result = grangercausalitytests(data[[r, c]], p, verbose=False)
-            p_values = [round(test_result[i+1][0][test][1],4) for i in range(p)]
+            test_result = grangercausalitytests(data[[r, c]], maxlag, verbose=False)
+            p_values = [round(test_result[i+1][0][test][1],4) for i in range(maxlag)]
             if verbose: print(f'Y = {r}, X = {c}, P Values = {p_values}')
             min_p_value = np.min(p_values)
             df.loc[r, c] = min_p_value

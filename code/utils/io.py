@@ -1,70 +1,76 @@
 import os
+import pickle
 from datetime import datetime
 import matplotlib.pyplot as plt
+import re
 
-
-def save_all_open_figures(
-    subdir="figures",
+def save_results(
+    data_dict=None,
     base_dir="results",
     dpi=300,
-    close=False
+    close_figures=False,
+    save_pickle=True
 ):
     """
-    Save all currently open matplotlib figures.
+    Save all open figures and associated data inside a timestamped folder.
 
     Parameters
     ----------
-    subdir : str
-        Subdirectory inside results/
+    data_dict : dict
+        Dictionary of data to save (e.g. arrays, scalars, lists)
     base_dir : str
         Root results directory
     dpi : int
-        Resolution for saved images
-    close : bool
+        Resolution for saved figures
+    close_figures : bool
         Close figures after saving
+    save_pickle : bool
+        Save data as pickle
     """
 
-    fig_nums = plt.get_fignums()
-
-    if not fig_nums:
-        print("[Info] No open figures to save.")
-        return []
-
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    out_dir = os.path.join(base_dir, subdir)
-    os.makedirs(out_dir, exist_ok=True)
+    root_dir = os.path.join(base_dir, timestamp)
 
-    saved_paths = []
+    fig_dir = os.path.join(root_dir, "figures")
+    data_dir = os.path.join(root_dir, "data")
+
+    os.makedirs(fig_dir, exist_ok=True)
+    os.makedirs(data_dir, exist_ok=True)
+
+    # Save figures
+    fig_nums = plt.get_fignums()
 
     for i, fig_num in enumerate(fig_nums, start=1):
         fig = plt.figure(fig_num)
 
-        # 1. Try suptitle
         title = ""
         if fig._suptitle is not None:
             title = fig._suptitle.get_text()
-
-        # 2. Fallback: first axis title
-        if not title and fig.axes:
+        elif fig.axes:
             title = fig.axes[0].get_title()
 
         safe_title = _sanitize_filename(title)
-        filename = f"{i}_{safe_title}_{timestamp}.png"
-        path = os.path.join(out_dir, filename)
+        filename = f"{i}_{safe_title}.png"
+        path = os.path.join(fig_dir, filename)
 
         fig.tight_layout()
         fig.savefig(path, dpi=dpi)
-        saved_paths.append(path)
 
         print(f"[Saved figure] {path}")
 
-        if close:
+        if close_figures:
             plt.close(fig)
 
-    return saved_paths
+    # Save data
+    if data_dict is not None:
+        if save_pickle:
+            pkl_path = os.path.join(data_dir, "saved_data.pkl")
+            with open(pkl_path, "wb") as f:
+                pickle.dump(data_dict, f)
+            print(f"[Saved data] {pkl_path}")
 
+    return root_dir
 
-import re
 
 
 def _sanitize_filename(text, max_len=50):
