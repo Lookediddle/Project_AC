@@ -13,5 +13,5 @@ mean_pvals, binary_adj = granger_ecn(epochs, maxlag=6, alpha=0.05)
 
 #%% save results
 from utils.io import *
-res={"eeg":eeg}
+res={"ch_names":ch_names, "mean_pvals":mean_pvals, "binary_adj":binary_adj}
 save_results(res)

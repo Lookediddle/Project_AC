@@ -1,4 +1,4 @@
 # Dataset EEG
 dataset/
 # all saved experiment data (pickle): could be really large!
-code/results/*/data/
+#code/results/*/data/
