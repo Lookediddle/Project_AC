@@ -53,7 +53,7 @@ def save_results(
         filename = f"{i}_{safe_title}.png"
         path = os.path.join(fig_dir, filename)
 
-        fig.tight_layout()
+        #fig.tight_layout()
         fig.savefig(path, dpi=dpi)
 
         print(f"[Saved figure] {path}")
@@ -82,3 +82,36 @@ def _sanitize_filename(text, max_len=50):
     text = re.sub(r"[^a-z0-9_]", "", text)    # remove invalid chars
     return text[:max_len] if text else "figure"
 
+
+
+def load_data(path):
+    """
+    Load a pickle file containing a dictionary (with variable names as keys and 
+    loaded values as values) of saved variables.
+
+    Parameters
+    ----------
+    path : str
+        Path to the pickle file (e.g. results/20260114_153210/data/saved_data.pkl)
+
+    Returns
+    -------
+    variables : various
+        Variables contained in the dictionary
+    """
+
+    if not os.path.isfile(path):
+        raise FileNotFoundError(f"Pickle file not found: {path}")
+
+    with open(path, "rb") as f:
+        data = pickle.load(f)
+
+    if not isinstance(data, dict):
+        raise ValueError(f"Expected a dict in pickle file, got {type(data)} instead.")
+
+    #channels = data["channels"]
+    channels = data["channels"]
+    mean_pvals = data["mean_pvals"]
+    binary_adj = data["binary_adj"]
+
+    return channels, mean_pvals, binary_adj

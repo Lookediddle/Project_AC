@@ -19,8 +19,8 @@ def load_eeg(filepath, preload=True):
         EEG signal
     sfreq : float
         Sampling frequency (Hz)
-    ch_names : list of str
-        Channel names
+    channels : dict
+        Channel numbers mapped to names (e.g. {0:"Fp1", 1:"Fp2", etc.})
     """
 
     raw = mne.io.read_raw_eeglab(filepath, preload=preload, verbose=False)
@@ -30,8 +30,12 @@ def load_eeg(filepath, preload=True):
     eeg_data = raw.get_data() # shape (n_channels, n_samples)
     sfreq = raw.info["sfreq"] # Fs
     ch_names = raw.info["ch_names"] # Fp1, Fp2, F3, F4, C3, C4, P3, P4, O1, O2, F7, F8, T3, T4, T5, T6, Fz, Cz, Pz
+    
+    channels = {}
+    for ch, name in enumerate(ch_names):
+        channels[ch] = name # e.g. {0:"Fp1", 1:"Fp2", etc.}
 
-    return eeg_data, sfreq, ch_names
+    return eeg_data, sfreq, channels
 
 
 import numpy as np
