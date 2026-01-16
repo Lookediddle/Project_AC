@@ -13,7 +13,7 @@ print(epochs.shape)
 mean_pvals, binary_adj = granger_ecn(epochs, channels, maxlag=6, alpha=0.05)
 
 #%% load results
-#channels, mean_pvals, binary_adj = load_data("results/20260116_143257/data/saved_data.pkl")
+#channels, mean_pvals, binary_adj = load_data("results/20260116_182920/data/saved_data.pkl")
 
 #%% plot ECNs
 plot_ecn(mean_pvals, binary_adj, title="Granger ECN", threshold=2.0)  # p < 0.01

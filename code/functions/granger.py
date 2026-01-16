@@ -22,18 +22,17 @@ def granger_ecn(epochs, channels, maxlag=6, alpha=0.05):
 
     Returns
     -------
-    mean_pvals : ndarray (n_channels, n_channels)
-    binary_adj : ndarray (n_channels, n_channels)
+    mean_pvals : pd.DataFrame (n_channels, n_channels)
+    binary_adj : pd.DataFrame (n_channels, n_channels)
     """
 
     ch_names = [name for ch,name in channels.items()] # Fp1, Fp2, F3, F4, C3, C4, P3, P4, O1, O2, F7, F8, T3, T4, T5, T6, Fz, Cz, Pz
-    n_epochs, n_channels, _ = epochs.shape
-    all_pvals = np.zeros((n_epochs, n_channels, n_channels))
+
+    all_pvals = []
 
     for e, epoch in enumerate(epochs):
         print(f"\n-- epoch: {e} --")
-        epoch_df = pd.DataFrame(epoch.T)
-        epoch_df.columns = ch_names
+        epoch_df = pd.DataFrame(epoch.T, columns=ch_names)
         
         # 1. make epoch stationary
         print('stationariety')
@@ -47,10 +46,10 @@ def granger_ecn(epochs, channels, maxlag=6, alpha=0.05):
         print('Computing Granger causation matrix...')
         pvals = granger_causation_matrix(epoch_df, epoch_df.columns, maxlag) 
 
-        all_pvals[e] = pvals
+        all_pvals.append(pvals)
 
-    # 4. aggregate across epochs
-    mean_pvals = np.mean(all_pvals, axis=0)
+    # 4. aggregate across epochs (i.e. mean)
+    mean_pvals = sum(all_pvals) / len(all_pvals)
 
     # 5. ECN adjacency (binary)
     binary_adj = (mean_pvals < alpha).astype(int)
