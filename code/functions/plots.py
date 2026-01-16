@@ -1,68 +1,137 @@
-import matplotlib.pyplot as plt
-import mne
 import numpy as np
-from mne.datasets import sample
-from mne.minimum_norm import apply_inverse_epochs, read_inverse_operator
-from mne.viz import circular_layout
+#from mne_connectivity.viz import plot_connectivity_circle
+import matplotlib.pyplot as plt
+from matplotlib.path import Path
+from matplotlib.patches import PathPatch
 
-from mne_connectivity import spectral_connectivity_epochs
-from mne_connectivity.viz import plot_connectivity_circle
-
-CHANNEL_ORDER = ["C3", "F4", "F3", "Fp2", "Fp1", "Pz", "Cz", "Fz", "T6", "T5", "T4", "T3", "F8", "F7", "O2", "O1", "P4", "P3", "C4"]
-AREA_COLORS = {
-    "Fp": "#E41A1C",
-    "F":  "#4DAF4A",
-    "C":  "#377EB8",
-    "P":  "#984EA3",
-    "O":  "#FF7F00",
-    "T":  "#A65628",
+channel_order = ["C3", "F4", "F3", "Fp2", "Fp1", "Pz", "Cz", "Fz", "T6", "T5", "T4", "T3", "F8", "F7", "O2", "O1", "P4", "P3", "C4"]
+channel_colors = {
+    "Fp1": "#CD3264", "Fp2": "#4EA760", "F3":  "#E6D241", "F4":  "#3C82B4",
+    "C3":  "#DF8B53", "C4":  "#9049A2", "Pz":  "#262673", "P3": "#6AC9C9",
+    "P4": "#D960C7", "O1":  "#B5CC5C", "O2":  "#E3C3C3", "F7": "#418181",
+    "F8": "#D1BBE6", "T3":  "#997347", "T4":  "#E6DEAD", "T5":  "#732626",
+    "T6":  "#A6E6BF", "Fz":  "#737333", "Cz":  "#E6BFA6"
 }
 
-def channel_color(ch):
-    if ch.startswith("Fp"):
-        return AREA_COLORS["Fp"]
-    return AREA_COLORS[ch[0]]
-
+def causal_strength(mean_pvals):
+    return -np.log10(mean_pvals + 1e-12)
 
 def plot_ecn(
     mean_pvals,
     binary_adj,
-    channel_order,
+    channel_order=channel_order,
+    channel_colors=channel_colors,
     threshold=1.3,
-    title="ECN",
-    figsize=(8, 8)
+    title="Effective Connectivity Network",
+    figsize=(7,7)
 ):
     """
-    Plot ECN using MNE connectivity circle.
+    ECN chord diagram.
+
+    Parameters
+    ----------
+    mean_pvals : pd.DataFrame
+        Rows = targets (Y), Columns = sources (X)
+    binary_adj : pd.DataFrame
+    channel_order : list of str
+        Exact order of channels around the circle
+    channel_colors : dict
+        Channel -> color
+    threshold : float
+        Minimum causal strength (-log10(p-value))
     """
-    conn = prepare_mne_connectivity(mean_pvals, binary_adj, channel_order)
 
-    node_colors = [channel_color(ch) for ch in channel_order]
-
-    plot_connectivity_circle(
-        conn,
-        channel_order,
-        node_colors=node_colors,
-        title=title,
-        n_lines=300,
-        colormap='Blues',
-        #vmin=threshold,
-        #vmax=np.max(conn),
-        linewidth=2,
-        fig=None,
-        show=True
-    )
-    print('plot done!')
-
-def prepare_mne_connectivity(mean_pvals, binary_adj, channel_order):
-    # reorder
+    # ---- reorder matrices ----
     mean_pvals = mean_pvals.loc[channel_order, channel_order]
     binary_adj = binary_adj.loc[channel_order, channel_order]
 
-    # causal strength
-    strength = -np.log10(mean_pvals.values + 1e-12)
+    strength = causal_strength(mean_pvals) # ******************CHIEDERE QUALE HANNO USATO****************
 
-    # mask non-significant
-    strength[binary_adj.values == 0] = 0.0
+    n = len(channel_order)
+    angles = np.linspace(0, 2 * np.pi, n, endpoint=False)
 
-    return strength
+    # node positions on circle
+    pos = {
+        ch: np.array([np.cos(a), np.sin(a)])
+        for ch, a in zip(channel_order, angles)
+    }
+
+    fig, ax = plt.subplots(figsize=figsize)
+    ax.set_aspect("equal")
+    ax.axis("off")
+
+    # ---- draw nodes ----
+    for ch in channel_order:
+        x, y = pos[ch]
+        ax.scatter(
+            x, y,
+            s=1500,
+            color=channel_colors[ch],
+            edgecolors="black",
+            zorder=8
+        )
+        ax.text(
+            1.15 * x,
+            1.15 * y,
+            ch,
+            ha="center",
+            va="center",
+            fontsize=11,
+            #fontweight="bold"
+        )
+
+    # ---- draw chord diagram ----
+    for src in channel_order:        # columns = sources
+        for tgt in channel_order:    # rows = targets
+            if src == tgt: # skip self
+                continue
+
+            if not binary_adj.loc[tgt, src]: # skip zeros (i.e. not causal relationships)
+                continue
+
+            w = strength.loc[tgt, src]
+            if w < threshold: # skip values under minimum strength
+                continue
+
+            p0 = pos[src]
+            p2 = pos[tgt]
+
+            draw_chord_arrow(ax, p0, p2, color=channel_colors[src])
+
+    plt.title(title, fontsize=14, pad=25)
+    plt.tight_layout()
+    plt.show()
+
+    print('plot done!')
+
+
+def draw_chord_arrow(ax, p0, p2, color):
+    """
+    Draw a chord from p0 (source node) to p2 (target node).
+    """
+    p1 = np.array([0.0, 0.0]) # control point: center
+
+    verts = [
+        (p0[0], p0[1]),  # start
+        (p1[0], p1[1]),  # control
+        (p2[0], p2[1]),  # end
+    ]
+
+    codes = [
+        Path.MOVETO,
+        Path.CURVE3,  # quadratic Bezier
+        Path.CURVE3,
+    ]
+
+    path = Path(verts, codes)
+
+    patch = PathPatch(
+        path,
+        facecolor="none",
+        edgecolor=color,
+        linewidth=1.2,
+        #alpha=0.85,
+        zorder=2
+    )
+    ax.add_patch(patch)
+

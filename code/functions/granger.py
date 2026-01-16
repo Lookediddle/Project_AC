@@ -9,13 +9,14 @@ import matplotlib.pyplot as plt
 plt.ion() # plt.show() not blocking execution
 
 #%% ref: https://phdinds-aim.github.io/time_series_handbook/04_GrangerCausality/04_GrangerCausality.html
-def granger_ecn(epochs, maxlag=6, alpha=0.05):
+def granger_ecn(epochs, channels, maxlag=6, alpha=0.05):
     """
     Compute Granger ECN for one subject by aggregating across epochs.
 
     Parameters
     ----------
     epochs : ndarray, shape (n_epochs, n_channels, n_samples)
+    channels : dict, channel numbers mapped to names (e.g. {0:"Fp1", 1:"Fp2", etc.})
     maxlag : int
     alpha : float
 
@@ -25,13 +26,15 @@ def granger_ecn(epochs, maxlag=6, alpha=0.05):
     binary_adj : ndarray (n_channels, n_channels)
     """
 
+    ch_names = [name for ch,name in channels.items()] # Fp1, Fp2, F3, F4, C3, C4, P3, P4, O1, O2, F7, F8, T3, T4, T5, T6, Fz, Cz, Pz
     n_epochs, n_channels, _ = epochs.shape
     all_pvals = np.zeros((n_epochs, n_channels, n_channels))
 
     for e, epoch in enumerate(epochs):
         print(f"\n-- epoch: {e} --")
         epoch_df = pd.DataFrame(epoch.T)
-
+        epoch_df.columns = ch_names
+        
         # 1. make epoch stationary
         print('stationariety')
         epoch_df, n_diffs = make_stationary(epoch_df) 
@@ -217,7 +220,7 @@ def granger_causation_matrix(data, variables, maxlag, test = 'ssr_chi2test', ver
 
     Returns
     -----------
-    df (DataFrame) : table of resulting p-values.
+    df (DataFrame) : table of resulting p-values (columns: X, rows: Y).
     """
     df = pd.DataFrame(np.zeros((len(variables), len(variables))), columns=variables, index=variables)
     
@@ -230,7 +233,6 @@ def granger_causation_matrix(data, variables, maxlag, test = 'ssr_chi2test', ver
             if verbose: print(f'Y = {r}, X = {c}, P Values = {p_values}')
             min_p_value = np.min(p_values)
             df.loc[r, c] = min_p_value
-    df.columns = [str(var) + '_x' for var in variables]
-    df.index = [str(var) + '_y' for var in variables]
+
     print(' ')
     return df
