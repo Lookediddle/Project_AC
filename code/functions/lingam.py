@@ -35,7 +35,7 @@ def lingam_ecn(epochs, channels, maxlag=6, threshold=0.01):
         # adjacency_matrices_: list [B0, B1, ..., Bp]
         B_mats = model.adjacency_matrices_
 
-        # aggregate causal effects (lagged and instantaneous)
+        # aggregate causal effects (instantaneous and lagged (k=1,...,maxlag))
         lagged_strength = np.zeros_like(B_mats[0])
 
         for k in range(len(B_mats)): # k=0,...,maxlag

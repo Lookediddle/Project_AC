@@ -13,11 +13,8 @@ channel_colors = {
     "T6":  "#A6E6BF", "Fz":  "#737333", "Cz":  "#E6BFA6"
 }
 
-def causal_strength(mean_pvals):
-    return -np.log10(mean_pvals + 1e-12)
-
 def plot_ecn(
-    mean_pvals,
+    strength,
     binary_adj,
     channel_order=channel_order,
     channel_colors=channel_colors,
@@ -30,8 +27,8 @@ def plot_ecn(
 
     Parameters
     ----------
-    mean_pvals : pd.DataFrame
-        Rows = targets (Y), Columns = sources (X)
+    strength : pd.DataFrame
+        causal strengths. Rows = targets (Y), Columns = sources (X)
     binary_adj : pd.DataFrame
     channel_order : list of str
         Exact order of channels around the circle
@@ -42,10 +39,8 @@ def plot_ecn(
     """
 
     # ---- reorder matrices ----
-    mean_pvals = mean_pvals.loc[channel_order, channel_order]
+    strength = strength.loc[channel_order, channel_order]
     binary_adj = binary_adj.loc[channel_order, channel_order]
-
-    strength = causal_strength(mean_pvals) # ******************CHIEDERE QUALE HANNO USATO****************
 
     n = len(channel_order)
     angles = np.linspace(0, 2 * np.pi, n, endpoint=False)
