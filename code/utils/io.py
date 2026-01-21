@@ -118,9 +118,9 @@ def load_data(path):
     gran_strength = res_granger["gran_strength"]
     gran_bin_adj = res_granger["gran_bin_adj"]
 
-    # lingam***********
-    # res_lingam = data["lingam"]
-    # ling_strength = res_lingam["ling_strength"]
-    # ling_bin_adj = res_lingam["ling_bin_adj"]
+    # lingam
+    res_lingam = data["lingam"]
+    ling_strength = res_lingam["ling_strength"]
+    ling_bin_adj = res_lingam["ling_bin_adj"]
     
-    return channels, gran_pvals, gran_strength, gran_bin_adj#, ling_strength, ling_bin_adj
+    return channels, gran_pvals, gran_strength, gran_bin_adj, ling_strength, ling_bin_adj

@@ -4,7 +4,10 @@ import matplotlib.pyplot as plt
 from matplotlib.path import Path
 from matplotlib.patches import PathPatch
 
+# list of str: exact order of channels around the circle
 channel_order = ["C3", "F4", "F3", "Fp2", "Fp1", "Pz", "Cz", "Fz", "T6", "T5", "T4", "T3", "F8", "F7", "O2", "O1", "P4", "P3", "C4"]
+
+# dict: channel -> color
 channel_colors = {
     "Fp1": "#CD3264", "Fp2": "#4EA760", "F3":  "#E6D241", "F4":  "#3C82B4",
     "C3":  "#DF8B53", "C4":  "#9049A2", "Pz":  "#262673", "P3": "#6AC9C9",
@@ -15,9 +18,6 @@ channel_colors = {
 
 def plot_ecn(
     strength,
-    binary_adj,
-    channel_order=channel_order,
-    channel_colors=channel_colors,
     threshold=1.3,
     title="Effective Connectivity Network",
     figsize=(7,7)
@@ -28,19 +28,13 @@ def plot_ecn(
     Parameters
     ----------
     strength : pd.DataFrame
-        causal strengths. Rows = targets (Y), Columns = sources (X)
-    binary_adj : pd.DataFrame
-    channel_order : list of str
-        Exact order of channels around the circle
-    channel_colors : dict
-        Channel -> color
+        causal strengths. Rows = targets (Y), Columns = sources (X)        
     threshold : float
         Minimum causal strength (-log10(p-value))
     """
 
-    # ---- reorder matrices ----
+    # ---- reorder matrix ----
     strength = strength.loc[channel_order, channel_order]
-    binary_adj = binary_adj.loc[channel_order, channel_order]
 
     n = len(channel_order)
     angles = np.linspace(0, 2 * np.pi, n, endpoint=False)
@@ -79,9 +73,6 @@ def plot_ecn(
     for src in channel_order:        # columns = sources
         for tgt in channel_order:    # rows = targets
             if src == tgt: # skip self
-                continue
-
-            if not binary_adj.loc[tgt, src]: # skip zeros (i.e. not causal relationships)
                 continue
 
             w = strength.loc[tgt, src]
@@ -124,8 +115,8 @@ def draw_chord_arrow(ax, p0, p2, color):
         path,
         facecolor="none",
         edgecolor=color,
-        linewidth=1.2,
-        #alpha=0.85,
+        linewidth=2,
+        alpha=0.9,
         zorder=2
     )
     ax.add_patch(patch)
