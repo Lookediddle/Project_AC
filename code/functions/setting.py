@@ -1,5 +1,7 @@
 import mne
 import numpy as np
+import pandas as pd
+from .granger import make_stationary
 
 
 def load_eeg(filepath, preload=True):
@@ -69,4 +71,49 @@ def split_epochs(eeg_data, n_epochs=10):
         epochs.append(epoch)
 
     return np.stack(epochs)
+
+
+# stationarity check
+def analyze_subject_stationarity(subject_dir, n_epochs=10):
+    """
+    Analyze stationarity for one subject EEG.
+
+    Returns
+    -------
+    subject_report : dict
+        Detailed stationarity report
+    """
+
+    eeg_file = list((subject_dir / "eeg").glob("*_eeg.set"))[0]
+
+    eeg, fs, channels = load_eeg(eeg_file, preload=True)
+    epochs = split_epochs(eeg, n_epochs=n_epochs)
+
+    ch_names = [name for _, name in channels.items()]
+
+    subject_report = {
+        "subject": subject_dir.name,
+        "fs": fs,
+        "n_epochs": epochs.shape[0],
+        "channels": ch_names,
+        "epochs": []
+    }
+
+    for e, epoch in enumerate(epochs):
+        print(f"... [epoch {e}]", end='-->', flush=True)
+
+        epoch_df = pd.DataFrame(epoch.T, columns=ch_names)
+
+        # stationarity
+        epoch_df_stat, n_diffs, diffed_channels = make_stationary(epoch_df)
+
+        epoch_info = {
+            "epoch": e,
+            "n_diffs": n_diffs,
+            "non_stationary_channels": diffed_channels
+        }
+
+        subject_report["epochs"].append(epoch_info)
+
+    return subject_report
 

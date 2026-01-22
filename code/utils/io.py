@@ -86,8 +86,7 @@ def _sanitize_filename(text, max_len=50):
 
 def load_data(path):
     """
-    Load a pickle file containing a dictionary (with variable names as keys and 
-    loaded values as values) of saved variables.
+    Load a pickle file containing a dictionary of saved variables.
 
     Parameters
     ----------
@@ -96,8 +95,8 @@ def load_data(path):
 
     Returns
     -------
-    variables : various
-        Variables contained in the dictionary
+    data : dict
+        Saved dictionary dictionary
     """
 
     if not os.path.isfile(path):
@@ -109,18 +108,18 @@ def load_data(path):
     if not isinstance(data, dict):
         raise ValueError(f"Expected a dict in pickle file, got {type(data)} instead.")
 
-    # general
-    channels = data["channels"]
+    # # general
+    # channels = data["channels"]
 
-    # granger
-    res_granger = data["granger"]
-    gran_pvals = res_granger["gran_pvals"]
-    gran_strength = res_granger["gran_strength"]
-    gran_bin_adj = res_granger["gran_bin_adj"]
+    # # granger
+    # res_granger = data["granger"]
+    # gran_pvals = res_granger["gran_pvals"]
+    # gran_strength = res_granger["gran_strength"]
+    # gran_bin_adj = res_granger["gran_bin_adj"]
 
-    # lingam
-    res_lingam = data["lingam"]
-    ling_strength = res_lingam["ling_strength"]
-    ling_bin_adj = res_lingam["ling_bin_adj"]
+    # # lingam
+    # res_lingam = data["lingam"]
+    # ling_strength = res_lingam["ling_strength"]
+    # ling_bin_adj = res_lingam["ling_bin_adj"]
     
-    return channels, gran_pvals, gran_strength, gran_bin_adj, ling_strength, ling_bin_adj
+    return data #channels, gran_pvals, gran_strength, gran_bin_adj, ling_strength, ling_bin_adj

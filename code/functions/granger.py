@@ -34,13 +34,13 @@ def granger_ecn(epochs, channels, maxlag=6, alpha=0.05):
         print(f"\n-- epoch: {e} --")
         epoch_df = pd.DataFrame(epoch.T, columns=ch_names)
         
-        # 1. make epoch stationary
-        print('stationariety')
-        epoch_df, n_diffs = make_stationary(epoch_df) 
+        # 1. make epoch stationary *****
+        #print('stationariety')
+        #epoch_df, n_diffs = make_stationary(epoch_df) 
 
         # 2. select maxlag from multivariate time series
-        print('selecting maxlag...')
-        select_p(epoch_df) # select the VAR (Vector AutoRegressive) model order p (i.e. maxlag) from plots' elbows
+        #print('selecting maxlag...')
+        #select_p(epoch_df) # select the VAR (Vector AutoRegressive) model order p (i.e. maxlag) from plots' elbows
 
         # 3. apply Granger
         print('Computing Granger causation matrix...')
@@ -72,16 +72,18 @@ def make_stationary(series_df):
     -------
     epoch_df (pd DataFrame) : multivariate time series (n_samples, n_channels)
     n_diffs (int) : number of times that differencing is applied
+    diffed_channels (list) : list of channels that were not stationary
     """
     epoch_df = series_df.copy()
 
     stationary_channels = {} # ch : (True|False)
     n_diffs = 0
+    diffed_channels = [] # track differenced channels
 
     while True:
-        print(' - adf test...')
+        print('adf test', end=',', flush=True)
         adf = adf_test(epoch_df)
-        print(' - kpss test...')
+        print('kpss test', end=',', flush=True)
         kpss = kpss_test(epoch_df)
 
         # Series is stationary if ADF rejects unit root and KPSS does NOT reject stationarity
@@ -104,18 +106,19 @@ def make_stationary(series_df):
 
             if adf_stationarity==False or kpss_stationarity==False:
                 # apply differencing on this channel
-                print(f" - differencing channel {ch}...")
+                print(f"differencing channel {ch}", end=',', flush=True)
                 epoch_df[ch] = epoch_df[ch] - epoch_df[ch].shift(1)
                 epoch_df = epoch_df.dropna() # drop rows with NaN values
                 
                 stationary_channels[ch] = False
                 n_diffs += 1
+                diffed_channels.append(ch)
             else:
                 stationary_channels[ch] = True
         
         if all(stationary_channels.values()): break # if all channels are stationary (True), break
 
-    return epoch_df, n_diffs
+    return epoch_df, n_diffs, np.unique(diffed_channels)
 
 
 def adf_test(data_df):
