@@ -11,7 +11,11 @@ ranges = [(range(1, 37), "AD"), (range(37, 66), "CN"),(range(66, 89), "FTD")]
 subs_to_groups = {num:label for r,label in ranges for num in r} # e.g. {1:"AD", 2:"AD", ...}
 
 #%% process ECN
-results = {"AD":{{}}, "FTD":{{}}, "CN":{{}}}
+results = {
+    "AD":  {"strengths": [], "bin_adj": []},
+    "FTD": {"strengths": [], "bin_adj": []},
+    "CN":  {"strengths": [], "bin_adj": []}}
+
 for subj_dir in subjects:
     subj_id = subj_dir.name # i.e. 'sub-xxx'
     subj_group = subs_to_groups[int(subj_id[-3:])] # i.e. int('xxx')
@@ -26,8 +30,8 @@ for subj_dir in subjects:
     #ling_strength, ling_bin_adj = lingam_ecn(epochs, channels, maxlag=1)
     ling_strength, ling_bin_adj = lingam_ecn_no_lags(epochs, channels)
 
-    results[subj_group]["strengths"] = ling_strength
-    results[subj_group]["bin_adj"] = ling_bin_adj
+    results[subj_group]["strengths"].append(ling_strength)
+    results[subj_group]["bin_adj"].append(ling_bin_adj)
 
 save_results(results)
 

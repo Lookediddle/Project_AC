@@ -85,12 +85,12 @@ def lingam_ecn_no_lags(epochs, channels, threshold=0.01):
     all_B = []
 
     for e, epoch in enumerate(epochs):
-        print(f"\n-- epoch: {e} --")
+        print(f"... [epoch {e}]", end='-->', flush=True)
 
         # LiNGAM expects shape (n_samples, n_channels)
         epoch_df = pd.DataFrame(epoch.T, columns=ch_names)
 
-        print("Fitting LiNGAM...")
+        print("... ***fitting LiNGAM*** ...", end=', ', flush=True)
         model = DirectLiNGAM() # DirectLiNGAM converges to right solution (!= ICALiNGAM to local optima!)
         model.fit(epoch_df)
 
@@ -103,10 +103,10 @@ def lingam_ecn_no_lags(epochs, channels, threshold=0.01):
 
         all_B.append(abs(B))
 
-    # aggregate across epochs
+    # aggregate across epochs (i.e. mean)
     mean_strength = sum(all_B) / len(all_B)
 
-    # binary ECN
+    # ECN adjacency (binary) ***secondo me non serve, piuttosto i pvals (se calcolabili)***
     binary_adj = (mean_strength > threshold).astype(int)
 
     return mean_strength, binary_adj
