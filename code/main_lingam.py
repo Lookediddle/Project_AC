@@ -36,5 +36,5 @@ for subj_dir in subjects:
 save_results(results)
 
 #%% plot ECNs ***da sistemare per i groups***
-plot_ecn(ling_strength, title="LiNGAM ECN", threshold=2.0)
-save_results() # save figures
+#plot_ecn(ling_strength, title="LiNGAM ECN", threshold=2.0)
+#save_results() # save figures

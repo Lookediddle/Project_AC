@@ -56,7 +56,7 @@ def save_results(
         #fig.tight_layout()
         fig.savefig(path, dpi=dpi)
 
-        print(f"[Saved figure] {path}")
+        print(f"\n[Saved figure] {path}")
 
         if close_figures:
             plt.close(fig)
@@ -67,7 +67,7 @@ def save_results(
             pkl_path = os.path.join(data_dir, "saved_data.pkl")
             with open(pkl_path, "wb") as f:
                 pickle.dump(data_dict, f)
-            print(f"[Saved data] {pkl_path}")
+            print(f"\n[Saved data] {pkl_path}")
 
     return root_dir
 
