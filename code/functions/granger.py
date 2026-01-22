@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 plt.ion() # plt.show() not blocking execution
 
 #%% ref: https://phdinds-aim.github.io/time_series_handbook/04_GrangerCausality/04_GrangerCausality.html
-def granger_ecn(epochs, channels, maxlag=6, alpha=0.05):
+def granger_ecn(epochs, channels, maxlag=4, alpha=0.05, current_subject=None):
     """
     Compute Granger ECN for one subject by aggregating across epochs.
 
@@ -19,6 +19,9 @@ def granger_ecn(epochs, channels, maxlag=6, alpha=0.05):
     channels : dict, channel numbers mapped to names (e.g. {0:"Fp1", 1:"Fp2", etc.})
     maxlag : int
     alpha : float
+    current_subject : dict, if not None, it means that the stationarity was already checked 
+        during preprocessing. So stationarity check is skipped when not necessary.
+        Default at None.
 
     Returns
     -------
@@ -31,19 +34,25 @@ def granger_ecn(epochs, channels, maxlag=6, alpha=0.05):
     all_pvals = []
 
     for e, epoch in enumerate(epochs):
-        print(f"\n-- epoch: {e} --")
+        print(f"... [epoch {e}]", end='-->', flush=True)
         epoch_df = pd.DataFrame(epoch.T, columns=ch_names)
         
-        # 1. make epoch stationary *****
-        #print('stationariety')
-        #epoch_df, n_diffs = make_stationary(epoch_df) 
+        # 1. make epoch stationary 
+        print('... stationariety', end=' ', flush=True)
+        if current_subject == None:
+            epoch_df, n_diffs = make_stationary(epoch_df) 
+        
+        else: # stationarity check was done in pre-processing
+            curr_epoch_report = current_subject['epochs'][e]
+            if curr_epoch_report['n_diffs'] > 0: # not stationary!!! differencing was applied in this epoch
+                epoch_df, n_diffs = make_stationary(epoch_df) 
 
-        # 2. select maxlag from multivariate time series
+        # 2. select maxlag from multivariate time series********per ora maxlag=4 fisso come paper
         #print('selecting maxlag...')
         #select_p(epoch_df) # select the VAR (Vector AutoRegressive) model order p (i.e. maxlag) from plots' elbows
 
         # 3. apply Granger
-        print('Computing Granger causation matrix...')
+        print('... ***computing Granger***', end=', ', flush=True)
         pvals = granger_causation_matrix(epoch_df, epoch_df.columns, maxlag) 
 
         all_pvals.append(pvals)
@@ -226,17 +235,16 @@ def granger_causation_matrix(data, variables, maxlag, test = 'ssr_chi2test', ver
     """
     df = pd.DataFrame(np.zeros((len(variables), len(variables))), columns=variables, index=variables)
     
-    print(f"- channels: ", end=' ', flush=True)
+    #print(f"- channels: ", end=' ', flush=True)
     for c in df.columns:
         for r in df.index:
-            print(f"({c}->{r})", end=' ', flush=True)
+            #print(f"({c}->{r})", end=' ', flush=True) # print channels being analysed
             test_result = grangercausalitytests(data[[r, c]], maxlag, verbose=False)
             p_values = [round(test_result[i+1][0][test][1],4) for i in range(maxlag)]
             if verbose: print(f'Y = {r}, X = {c}, P Values = {p_values}')
             min_p_value = np.min(p_values)
             df.loc[r, c] = min_p_value
 
-    print(' ')
     return df
 
 
