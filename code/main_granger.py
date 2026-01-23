@@ -46,6 +46,6 @@ for subj_dir in subjects:
 save_results(results)
 
 #%% plot ECNs
-gran_strength = causal_strength(gran_pvals) # ***provare media di bin_adj per ogni gruppo (strength empirica)*** ******CHIEDERE QUALE HANNO USATO********
-plot_ecn(gran_strength, title="Granger ECN", threshold=2.0)  # p < 0.01
-save_results() # ***da sistemare per i groups***
+# gran_strength = causal_strength(gran_pvals) # ***provare media di bin_adj per ogni gruppo (strength empirica)*** ******CHIEDERE QUALE HANNO USATO********
+# plot_ecn(gran_strength, title="Granger ECN", threshold=2.0)  # p < 0.01
+# save_results() # ***da sistemare per i groups***

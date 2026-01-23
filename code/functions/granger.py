@@ -40,12 +40,12 @@ def granger_ecn(epochs, channels, maxlag=4, alpha=0.05, current_subject=None):
         # 1. make epoch stationary 
         print('... stationariety', end=' ', flush=True)
         if current_subject == None:
-            epoch_df, n_diffs = make_stationary(epoch_df) 
+            epoch_df, n_diffs, _ = make_stationary(epoch_df) 
         
         else: # stationarity check was done in pre-processing
             curr_epoch_report = current_subject['epochs'][e]
             if curr_epoch_report['n_diffs'] > 0: # not stationary!!! differencing was applied in this epoch
-                epoch_df, n_diffs = make_stationary(epoch_df) 
+                epoch_df, n_diffs, _ = make_stationary(epoch_df) 
 
         # 2. select maxlag from multivariate time series********per ora maxlag=4 fisso come paper
         #print('selecting maxlag...')

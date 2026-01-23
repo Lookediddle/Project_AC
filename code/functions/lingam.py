@@ -26,7 +26,7 @@ def lingam_ecn(epochs, channels, maxlag=4, threshold=0.01):
 
         # 1. stationarity (same as Granger)
         #print("stationarity")
-        #epoch_df, _ = make_stationary(epoch_df)
+        #epoch_df, _, _ = make_stationary(epoch_df)
 
         # 2. VAR-LiNGAM
         print("Fitting VAR-LiNGAM...")
