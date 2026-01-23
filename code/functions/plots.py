@@ -19,8 +19,9 @@ channel_colors = {
 def plot_ecn(
     strength,
     threshold=1.3,
-    title="Effective Connectivity Network",
-    figsize=(7,7)
+    ax=None,
+    title=None,
+    figsize=(6, 6)
 ):
     """
     ECN chord diagram.
@@ -30,7 +31,16 @@ def plot_ecn(
     strength : pd.DataFrame
         causal strengths. Rows = targets (Y), Columns = sources (X)        
     threshold : float
-        Minimum causal strength (-log10(p-value))
+        Minimum causal strength
+    ax : matplotlib Axes or None
+        If None, creates a standalone figure.
+    title : str or None
+    figsize : tuple
+        Used only if ax is None.
+
+    Returns
+    ----------
+    ax : matplotlib axes used for the plot/subplot
     """
 
     # ---- reorder matrix ----
@@ -45,7 +55,10 @@ def plot_ecn(
         for ch, a in zip(channel_order, angles)
     }
 
-    fig, ax = plt.subplots(figsize=figsize)
+    # ---- manage plot or subplots ----
+    standalone = ax is None
+    if standalone:
+        fig, ax = plt.subplots(figsize=figsize)
     ax.set_aspect("equal")
     ax.axis("off")
 
@@ -54,7 +67,7 @@ def plot_ecn(
         x, y = pos[ch]
         ax.scatter(
             x, y,
-            s=1500,
+            s=500, # not too large otherwise it will be cut out
             color=channel_colors[ch],
             edgecolors="black",
             zorder=8
@@ -84,11 +97,13 @@ def plot_ecn(
 
             draw_chord_arrow(ax, p0, p2, color=channel_colors[src])
 
-    plt.title(title, fontsize=14, pad=25)
-    plt.tight_layout()
-    plt.show()
+    if title is not None:
+        ax.set_title(title, fontsize=14, pad=20)
+    
+    if standalone:
+        plt.show()
 
-    print('plot done!')
+    return ax
 
 
 def draw_chord_arrow(ax, p0, p2, color):
