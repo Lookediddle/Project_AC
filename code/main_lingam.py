@@ -36,15 +36,16 @@ subs_to_groups = {num:label for r,label in ranges for num in r} # e.g. {1:"AD", 
 # save_results(results)
 results = load_data("results/20260122_223151_no_lags_ling_allsubs/data/saved_data.pkl")
 
-#%% plot ECNs ***da sistemare per i groups***
+#%% plot ECNs for each group
 ch_names = results["AD"]["strengths"][0].columns # remind indexes' names = columns' names
 pos = {"CN":0,"FTD":1,"AD":2}
-thresh=10
+thresh=10 # scegliere soglia sensata
 
 fig, axes = plt.subplots(1, 3, figsize=(13, 6), constrained_layout=True)
 for group, all_ecns in results.items():
     strength_group = np.zeros_like(results[group]["strengths"][0])
     
+    # keep highest causal links
     for subj in range(0,len(all_ecns["strengths"])):
         strength_group = np.maximum(
             strength_group, np.abs(all_ecns["strengths"][subj]))

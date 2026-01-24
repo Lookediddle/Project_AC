@@ -21,31 +21,49 @@ subs_to_groups = {num:label for r,label in ranges for num in r} # e.g. {1:"AD", 
 all_subs_report = load_data("results/20260122_143416_allsubs_stationarity/data/saved_data.pkl")
 
 #%% process ECN
-results = {
-    "AD":  {"pvals": [], "bin_adj": []},
-    "FTD": {"pvals": [], "bin_adj": []},
-    "CN":  {"pvals": [], "bin_adj": []}}
+# results = {
+#     "AD":  {"pvals": [], "bin_adj": []},
+#     "FTD": {"pvals": [], "bin_adj": []},
+#     "CN":  {"pvals": [], "bin_adj": []}}
 
-for subj_dir in subjects:
-    subj_id = subj_dir.name # i.e. 'sub-xxx'
-    subj_group = subs_to_groups[int(subj_id[-3:])] # i.e. subs_to_groups[int('xxx')]
-    print(f"\n- {subj_id} -", end=' ', flush=True)
+# for subj_dir in subjects:
+#     subj_id = subj_dir.name # i.e. 'sub-xxx'
+#     subj_group = subs_to_groups[int(subj_id[-3:])] # i.e. subs_to_groups[int('xxx')]
+#     print(f"\n- {subj_id} -", end=' ', flush=True)
 
-    #%% preprocessing: load and segment
-    filepath = list((subj_dir / "eeg").glob("*_eeg.set"))[0]
-    eeg, _, channels = load_eeg(filepath, preload=True)
-    epochs = split_epochs(eeg, n_epochs=10) # split into 10 equal segments
+#     #%% preprocessing: load and segment
+#     filepath = list((subj_dir / "eeg").glob("*_eeg.set"))[0]
+#     eeg, _, channels = load_eeg(filepath, preload=True)
+#     epochs = split_epochs(eeg, n_epochs=10) # split into 10 equal segments
     
-    #%% granger 
-    curr_sub = all_subs_report[subj_id] # to skip unnecessary stationarity checks
-    gran_pvals, gran_bin_adj = granger_ecn(epochs, channels, 4, 0.05, curr_sub)
+#     #%% granger 
+#     curr_sub = all_subs_report[subj_id] # to skip unnecessary stationarity checks
+#     gran_pvals, gran_bin_adj = granger_ecn(epochs, channels, 4, 0.05, curr_sub)
     
-    results[subj_group]["pvals"].append(gran_pvals)
-    results[subj_group]["bin_adj"].append(gran_bin_adj)
+#     results[subj_group]["pvals"].append(gran_pvals)
+#     results[subj_group]["bin_adj"].append(gran_bin_adj)
 
-save_results(results)
+# save_results(results)
+results = load_data("results/20260124_135538_4_lags_gran_allsubs/data/saved_data.pkl")
 
-#%% plot ECNs
+#%% plot ECNs for each group
 # gran_strength = causal_strength(gran_pvals) # ***provare media di bin_adj per ogni gruppo (strength empirica)*** ******CHIEDERE QUALE HANNO USATO********
-# plot_ecn(gran_strength, title="Granger ECN", threshold=2.0)  # p < 0.01
-# save_results() # ***da sistemare per i groups***
+ch_names = results["AD"]["bin_adj"][0].columns # remind indexes' names = columns' names
+pos = {"CN":0,"FTD":1,"AD":2}
+thresh=0.99 # ***scegliere soglia sensate
+
+fig, axes = plt.subplots(1, 3, figsize=(13, 6), constrained_layout=True)
+for group, all_ecns in results.items():
+    # "empirical" strength: mean of causal links (if mean->1: high strength)
+    strength_group = np.mean(all_ecns["bin_adj"], axis=0) # in [0,1]
+    
+    strength_group_df = pd.DataFrame(
+            strength_group, index=ch_names, columns=ch_names)
+    
+    plot_ecn(strength_group_df, thresh, ax=axes[pos[group]], title=group)
+    #plot_ecn(gran_strength, title="Granger ECN", threshold=2.0)  #*** p < 0.01
+fig.suptitle(f"Granger (highest vals, th={thresh})", fontsize=16)
+#plt.tight_layout() # useless if constrained_layout=True
+plt.show()
+
+save_results() # save figures
