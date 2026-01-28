@@ -4,7 +4,7 @@ import pandas as pd
 from .granger import make_stationary
 
 
-def load_eeg(filepath, preload=True):
+def load_eeg(filepath, resample=None, preload=True):
     """
     Load a EEG file (.set).
 
@@ -12,6 +12,8 @@ def load_eeg(filepath, preload=True):
     ----------
     filepath : str
         Path to .set file
+    resample : int
+        Target frequency for resampling (Hz).
     preload : bool
         Whether to preload data into memory
 
@@ -29,15 +31,20 @@ def load_eeg(filepath, preload=True):
     #print(raw.info) # general infos
     #raw.plot()
 
+    if resample is not None:
+        raw = raw.resample(sfreq=resample, npad="auto")
     eeg_data = raw.get_data() # shape (n_channels, n_samples)
+
     sfreq = raw.info["sfreq"] # Fs
     ch_names = raw.info["ch_names"] # Fp1, Fp2, F3, F4, C3, C4, P3, P4, O1, O2, F7, F8, T3, T4, T5, T6, Fz, Cz, Pz
     
     channels = {}
     for ch, name in enumerate(ch_names):
         channels[ch] = name # e.g. {0:"Fp1", 1:"Fp2", etc.}
-
+    
     return eeg_data, sfreq, channels
+
+
 
 
 import numpy as np
@@ -74,9 +81,11 @@ def split_epochs(eeg_data, n_epochs=10):
 
 
 # stationarity check
-def analyze_subject_stationarity(subject_dir, n_epochs=10):
+def analyze_subject_stationarity(subject_dir, resample=50, n_epochs=10):
     """
-    Analyze stationarity for one subject EEG.
+    Analyze stationarity for one subject EEG. 
+    The EEG is resampled (default at 50 Hz) and divided into epochs (default 10)
+    before analyzing stationarity.
 
     Returns
     -------
@@ -86,7 +95,7 @@ def analyze_subject_stationarity(subject_dir, n_epochs=10):
 
     eeg_file = list((subject_dir / "eeg").glob("*_eeg.set"))[0]
 
-    eeg, fs, channels = load_eeg(eeg_file, preload=True)
+    eeg, fs, channels = load_eeg(eeg_file, resample=resample, preload=True) # notice resampling!
     epochs = split_epochs(eeg, n_epochs=n_epochs)
 
     ch_names = [name for _, name in channels.items()]

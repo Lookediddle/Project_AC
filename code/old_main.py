@@ -4,13 +4,13 @@ from utils.io import *
 
 #%% load and segment
 filepath = r"../dataset/derivatives/sub-017/eeg/sub-017_task-eyesclosed_eeg.set"
-eeg, fs, channels = load_eeg(filepath, preload=True)
+eeg, fs, channels = load_eeg(filepath, resample=50, preload=True)
 
 epochs = split_epochs(eeg, n_epochs=10) # split into 10 equal segments
 print(epochs.shape)
 
 #%% granger 
-#gran_pvals, gran_bin_adj = granger_ecn(epochs, channels, maxlag=6, alpha=0.05)
+gran_pvals, gran_bin_adj = granger_ecn(epochs, channels, maxlag=4, alpha=0.05)
 
 #%% lingam
 #ling_strength, ling_bin_adj = lingam_ecn(epochs, channels, maxlag=1)

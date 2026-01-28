@@ -48,8 +48,8 @@ def granger_ecn(epochs, channels, maxlag=4, alpha=0.05, current_subject=None):
                 epoch_df, n_diffs, _ = make_stationary(epoch_df) 
 
         # 2. select maxlag from multivariate time series********per ora maxlag=4 fisso come paper
-        #print('selecting maxlag...')
-        #select_p(epoch_df) # select the VAR (Vector AutoRegressive) model order p (i.e. maxlag) from plots' elbows
+        # print('selecting maxlag...')
+        # select_p(epoch_df) # select the VAR (Vector AutoRegressive) model order p (i.e. maxlag) from plots' elbows
 
         # 3. apply Granger
         print('... ***computing Granger***', end=', ', flush=True)
@@ -140,7 +140,7 @@ def adf_test(data_df):
     test_stat, p_val = [], []
     cv_1pct, cv_5pct, cv_10pct = [], [], [] # critical values
     for c in data_df.columns: 
-        adf_res = adfuller(data_df[c].dropna(), maxlag=20)
+        adf_res = adfuller(data_df[c].dropna(), maxlag=10) # modified maxlag
         test_stat.append(adf_res[0]) # always negative
         p_val.append(adf_res[1])
         cv_1pct.append(adf_res[4]['1%']) # always negative
@@ -195,7 +195,7 @@ def select_p(data_df):
     """
     aic, bic, fpe, hqic = [], [], [], []
     model = VAR(data_df) 
-    p = np.arange(1,20)
+    p = np.arange(1,10) # modified maxlag
     for i in p:
         result = model.fit(i)
         aic.append(result.aic)
@@ -242,12 +242,12 @@ def granger_causation_matrix(data, variables, maxlag, test = 'ssr_chi2test', ver
             test_result = grangercausalitytests(data[[r, c]], maxlag, verbose=False)
             p_values = [round(test_result[i+1][0][test][1],4) for i in range(maxlag)]
             if verbose: print(f'Y = {r}, X = {c}, P Values = {p_values}')
-            min_p_value = np.min(p_values)
+            min_p_value = np.max(p_values) #****************np.min(p_values)
             df.loc[r, c] = min_p_value
 
     return df
 
 
-# from pvals to strength
+# from pvals to strength *** valutare se togliere ***
 def causal_strength(pvals):
     return -np.log10(pvals + 1e-12)
