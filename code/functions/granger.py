@@ -246,8 +246,3 @@ def granger_causation_matrix(data, variables, maxlag, test = 'ssr_chi2test', ver
             df.loc[r, c] = min_p_value
 
     return df
-
-
-# from pvals to strength *** valutare se togliere ***
-def causal_strength(pvals):
-    return -np.log10(pvals + 1e-12)

@@ -50,24 +50,32 @@ all_subs_report = load_data("results/20260128_110832_allsubs_stationarity/data/s
 #     results[subj_group]["bin_adj"].append(gran_bin_adj)
 
 # save_results(results)
-results = load_data("results/20260128_154306_4_lags_gran_allsubs_resample/data/saved_data.pkl")
+results = load_data("results/20260128_132041_4_lags_gran_allsubs_resample/data/saved_data.pkl")
+
+# # apply Bonferroni correction #****da cancellare secondo me****
+# alpha_new = alpha / maxlag # alpha = alpha/m where m=#tests (i.e. lags)
+# for group, all_ecns in results.items():
+#     for subj in range(0,len(all_ecns["pvals"])):
+#         pvals = all_ecns["pvals"][subj]
+#         binary_adj_new = (pvals == alpha_new).astype(int)
+#         results[group]["bin_adj"][subj] = binary_adj_new
 
 #%% plot ECNs for each group
-# gran_strength = causal_strength(gran_pvals) # ***provare media di bin_adj per ogni gruppo (strength empirica)*** ******CHIEDERE QUALE HANNO USATO********
-ch_names = results["AD"]["bin_adj"][0].columns # remind indexes' names = columns' names
+ch_names = results["AD"]["pvals"][0].columns # remind indexes' names = columns' names
 pos = {"CN":0,"FTD":1,"AD":2}
-thresh=0.9 # ***scegliere soglia sensate
+thresh=1 
 
 fig, axes = plt.subplots(1, 3, figsize=(13, 6), constrained_layout=True)
 for group, all_ecns in results.items():
-    # "empirical" strength: mean of causal links (if mean->1: high strength)
-    strength_group = np.mean(all_ecns["bin_adj"], axis=0) # in [0,1]
     
+    # keep highest causal links (i.e. the certain ones -> p-value=0 for the entire group!)
+    pvals_group_mean = np.mean(results[group]["pvals"], axis=0)
+    strength_group = (np.round(pvals_group_mean,4) == 0).astype(int) 
+        
     strength_group_df = pd.DataFrame(
             strength_group, index=ch_names, columns=ch_names)
     
     plot_ecn(strength_group_df, thresh, ax=axes[pos[group]], title=group)
-    #plot_ecn(gran_strength, title="Granger ECN", threshold=2.0)  #*** p < 0.01
 fig.suptitle(f"Granger (highest vals, th={thresh})", fontsize=16)
 #plt.tight_layout() # useless if constrained_layout=True
 plt.show()
