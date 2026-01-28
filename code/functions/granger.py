@@ -242,7 +242,7 @@ def granger_causation_matrix(data, variables, maxlag, test = 'ssr_chi2test', ver
             test_result = grangercausalitytests(data[[r, c]], maxlag, verbose=False)
             p_values = [round(test_result[i+1][0][test][1],4) for i in range(maxlag)]
             if verbose: print(f'Y = {r}, X = {c}, P Values = {p_values}')
-            min_p_value = np.max(p_values) #****************np.min(p_values)
+            min_p_value = np.min(p_values)
             df.loc[r, c] = min_p_value
 
     return df

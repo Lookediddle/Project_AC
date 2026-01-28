@@ -50,13 +50,13 @@ all_subs_report = load_data("results/20260128_110832_allsubs_stationarity/data/s
 #     results[subj_group]["bin_adj"].append(gran_bin_adj)
 
 # save_results(results)
-results = load_data("results/20260128_132041_4_lags_gran_allsubs_resample/data/saved_data.pkl")
+results = load_data("results/20260128_154306_4_lags_gran_allsubs_resample/data/saved_data.pkl")
 
 #%% plot ECNs for each group
 # gran_strength = causal_strength(gran_pvals) # ***provare media di bin_adj per ogni gruppo (strength empirica)*** ******CHIEDERE QUALE HANNO USATO********
 ch_names = results["AD"]["bin_adj"][0].columns # remind indexes' names = columns' names
 pos = {"CN":0,"FTD":1,"AD":2}
-thresh=0.99 # ***scegliere soglia sensate
+thresh=0.9 # ***scegliere soglia sensate
 
 fig, axes = plt.subplots(1, 3, figsize=(13, 6), constrained_layout=True)
 for group, all_ecns in results.items():
