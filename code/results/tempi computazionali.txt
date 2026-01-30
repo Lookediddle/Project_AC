@@ -1,3 +1,6 @@
+- bootstrap (n_sampling=10...): mezzora solo per un'epoch di un soggetto!!!
+
+vecchi:
 - allsubs_stationarity: circa 4 ore
 - no_lags_ling_allsubs: circa 4 ore
 - 4_lags_gran_allsubs: circa 12 ore!!!

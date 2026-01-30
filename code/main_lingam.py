@@ -3,12 +3,28 @@ from functions import *
 from utils.io import *
 from pathlib import Path
 
+#%% hyperparams
+fs_res = 50 # resampling frequency (Hz)
+n_epochs = 10
+maxlag = 4
+alpha = 0.05
+
 #%% dataset
 dataset_dir = Path("../dataset/derivatives/")
 subjects = sorted([p for p in dataset_dir.iterdir() if p.name.startswith("sub-")])
 # groups reference
 ranges = [(range(1, 37), "AD"), (range(37, 66), "CN"),(range(66, 89), "FTD")]
 subs_to_groups = {num:label for r,label in ranges for num in r} # e.g. {1:"AD", 2:"AD", ...}
+
+#%% VAR(-lingam) preprocessing: check stationarity
+# print('--- check stationarity ---')
+# all_subs_report = {}
+# for subj_dir in subjects:
+#     print(f"\n- {subj_dir.name} -", end=' ', flush=True)
+#     report = analyze_subject_stationarity(subj_dir, resample=fs_res, n_epochs=n_epochs)
+#     all_subs_report[subj_dir.name] = report
+# save_results(all_subs_report)
+all_subs_report = load_data("results/20260128_110832_allsubs_stationarity/data/saved_data.pkl")
 
 #%% process ECN
 # results = {
@@ -23,23 +39,23 @@ subs_to_groups = {num:label for r,label in ranges for num in r} # e.g. {1:"AD", 
 
 #     #%% preprocessing: load and segment
 #     filepath = list((subj_dir / "eeg").glob("*_eeg.set"))[0]
-#     eeg, _, channels = load_eeg(filepath, preload=True)
-#     epochs = split_epochs(eeg, n_epochs=10) # split into 10 equal segments
+#     eeg, _, channels = load_eeg(filepath, resample=fs_res, preload=True) # notice resampling!
+#     epochs = split_epochs(eeg, n_epochs=n_epochs) # split into 10 equal segments
         
 #     #%% lingam
-#     #ling_strength, ling_bin_adj = lingam_ecn(epochs, channels, maxlag=1)
-#     ling_strength, ling_bin_adj = lingam_ecn_no_lags(epochs, channels)
+#     sub = all_subs_report[subj_id] # to skip unnecessary stationarity checks
+#     ling_strength = lingam_ecn(epochs, channels, maxlag, current_subject=sub)
+#     #ling_strength, ling_bin_adj = lingam_ecn_no_lags(epochs, channels)
 
 #     results[subj_group]["strengths"].append(ling_strength)
-#     results[subj_group]["bin_adj"].append(ling_bin_adj)
 
 # save_results(results)
-results = load_data("results/20260122_223151_no_lags_ling_allsubs/data/saved_data.pkl")
+results = load_data("results/20260130_141033_4_lags_var-ling_allsubs/data/saved_data.pkl")
 
 #%% plot ECNs for each group
 ch_names = results["AD"]["strengths"][0].columns # remind indexes' names = columns' names
 pos = {"CN":0,"FTD":1,"AD":2}
-thresh=10 # scegliere soglia sensata
+thresh=10000 # scegliere soglia sensata
 
 fig, axes = plt.subplots(1, 3, figsize=(13, 6), constrained_layout=True)
 for group, all_ecns in results.items():
