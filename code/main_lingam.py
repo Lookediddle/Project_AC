@@ -60,16 +60,16 @@ thresh=10000 # scegliere soglia sensata
 fig, axes = plt.subplots(1, 3, figsize=(13, 6), constrained_layout=True)
 for group, all_ecns in results.items():
     strength_group = np.zeros_like(results[group]["strengths"][0])
-    
+
     # keep highest causal links
     for subj in range(0,len(all_ecns["strengths"])):
         strength_group = np.maximum(
             strength_group, np.abs(all_ecns["strengths"][subj]))
-    
+        
     strength_group_df = pd.DataFrame(
             strength_group, index=ch_names, columns=ch_names)
     
-    plot_ecn(strength_group, thresh, ax=axes[pos[group]], title=group)
+    plot_ecn(strength_group_df, thresh, ax=axes[pos[group]], title=group)
 
 fig.suptitle(f"LiNGAM (highest vals, th={thresh})", fontsize=16)
 #plt.tight_layout() # useless if constrained_layout=True

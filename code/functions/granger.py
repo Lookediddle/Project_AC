@@ -67,7 +67,7 @@ def granger_ecn(epochs, channels, maxlag=4, alpha=0.05, current_subject=None):
 
 
 # stazionarietà (Granger assumption)
-def make_stationary(series_df):
+def make_stationary(series_df, verbose=True):
     """
     Make all channels in an epoch stationary.
     Iteratively difference the series until they are all stationary
@@ -90,9 +90,9 @@ def make_stationary(series_df):
     diffed_channels = [] # track differenced channels
 
     while True:
-        print('adf test', end=',', flush=True)
+        if verbose: print('adf test', end=',', flush=True)
         adf = adf_test(epoch_df)
-        print('kpss test', end=',', flush=True)
+        if verbose: print('kpss test', end=',', flush=True)
         kpss = kpss_test(epoch_df)
 
         # Series is stationary if ADF rejects unit root and KPSS does NOT reject stationarity
@@ -115,7 +115,7 @@ def make_stationary(series_df):
 
             if adf_stationarity==False or kpss_stationarity==False:
                 # apply differencing on this channel
-                print(f"differencing channel {ch}", end=',', flush=True)
+                if verbose: print(f"differencing channel {ch}", end=',', flush=True)
                 epoch_df[ch] = epoch_df[ch] - epoch_df[ch].shift(1)
                 epoch_df = epoch_df.dropna() # drop rows with NaN values
                 

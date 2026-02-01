@@ -6,7 +6,7 @@ import numpy as np
 from .granger import make_stationary
 
 # time series
-def lingam_ecn(epochs, channels, maxlag=4, alpha=0.05, threshold=0.01, current_subject=None):
+def lingam_ecn(epochs, channels, maxlag=4, current_subject=None, verbose=True):
     """
     Compute VAR-LiNGAM (time-series) ECN for one subject by aggregating across epochs.
 
@@ -30,22 +30,22 @@ def lingam_ecn(epochs, channels, maxlag=4, alpha=0.05, threshold=0.01, current_s
     all_strengths = []
 
     for e, epoch in enumerate(epochs):
-        print(f"... [epoch {e}]", end='-->', flush=True)
+        if verbose: print(f"... [epoch {e}]", end='-->', flush=True)
 
         epoch_df = pd.DataFrame(epoch.T, columns=ch_names)
 
         # 1. make epoch stationary (for VAR model!)
-        print('... stationariety', end=' ', flush=True)
+        if verbose: print('... stationariety', end=' ', flush=True)
         if current_subject == None:
-            epoch_df, n_diffs, _ = make_stationary(epoch_df) 
+            epoch_df, n_diffs, _ = make_stationary(epoch_df, verbose) 
         
         else: # stationarity check was done in pre-processing
             curr_epoch_report = current_subject['epochs'][e]
             if curr_epoch_report['n_diffs'] > 0: # not stationary!!! differencing was applied in this epoch
-                epoch_df, n_diffs, _ = make_stationary(epoch_df) 
+                epoch_df, n_diffs, _ = make_stationary(epoch_df, verbose) 
 
         # 2. apply VAR-LiNGAM
-        print("... ***fitting VAR-LiNGAM***", end=', ', flush=True)
+        if verbose: print("... ***fitting VAR-LiNGAM***", end=', ', flush=True)
         model = VARLiNGAM(lags=maxlag, criterion=None) # criterion=None: do not search best lags
         model.fit(epoch_df)
 
@@ -80,6 +80,35 @@ def lingam_ecn(epochs, channels, maxlag=4, alpha=0.05, threshold=0.01, current_s
 
     return mean_strength#, binary_adj
 
+
+# jackknife for reliability -> leave-one-epoch-out
+def lingam_ecn_jk(epochs, channels, maxlag=4, current_subject=None, verbose=False):
+    
+    ch_names = [name for _, name in channels.items()]
+
+    # jackknife
+    N = len(epochs)
+    jk_strengths = []
+
+    print('\n... jackknife w/o epoch:', end=' ', flush=True)
+    for i in range(N):
+        print(f'{i}', end=',', flush=True)
+        epochs_jk = np.delete(epochs, i, axis=0)
+        mean_jk = lingam_ecn(
+            epochs_jk, channels, maxlag, current_subject, verbose
+        )
+        jk_strengths.append(mean_jk.values)
+    
+    jk_strengths = np.array(jk_strengths)
+
+    mean_jk = np.mean(jk_strengths, axis=0)
+
+    # jackknife variance: <variance => >link stability
+    var_jk = ((N-1)/N) * np.sum((jk_strengths - mean_jk)**2, axis=0)
+
+    std_jk = np.sqrt(var_jk)
+
+    return std_jk
 
 
 # istantaneous, pure lingam******
