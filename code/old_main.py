@@ -22,9 +22,13 @@ print(epochs.shape)
 #%% lingam
 all_subs_report = load_data("results/20260128_110832_allsubs_stationarity/data/saved_data.pkl")
 sub = all_subs_report[subj_id] # to skip unnecessary stationarity checks
-#ling_strength, ling_bin_adj = lingam_ecn(epochs, channels, maxlag, alpha)
 ling_strength = lingam_ecn(epochs, channels, maxlag, current_subject=sub)
-ling_std = lingam_ecn_jk(epochs, channels, maxlag, current_subject=sub)
+
+# jackknife
+# ling_strength = lingam_ecn(epochs, channels, maxlag, current_subject=sub)
+# ling_std = lingam_ecn_jk(epochs, channels, maxlag, current_subject=sub)
+
+# no lags
 #ling_strength, ling_bin_adj = lingam_ecn_no_lags(epochs, channels)
 
 #%% load results

@@ -23,6 +23,70 @@ def lingam_ecn(epochs, channels, maxlag=4, current_subject=None, verbose=True):
 
     Returns
     -------
+    mean_strength : dict
+        maps each lag to its pd.DataFrame of causal strengths (n_channels, n_channels)
+    """
+
+    ch_names = [name for _, name in channels.items()]
+    strength_df = {} # {lag:strength_matrix}, e.g.: {0:B0, ..., maxlag:Bmaxlag}
+    mean_strength = {} # "
+    for k in range(maxlag+1):
+        strength_df[k] = [] # init
+        mean_strength[k] = []
+
+    for e, epoch in enumerate(epochs):
+        if verbose: print(f"... [epoch {e}]", end='-->', flush=True)
+
+        epoch_df = pd.DataFrame(epoch.T, columns=ch_names)
+
+        # 1. make epoch stationary (for VAR model!)
+        if verbose: print('... stationariety', end=' ', flush=True)
+        if current_subject == None:
+            epoch_df, n_diffs, _ = make_stationary(epoch_df, verbose) 
+        
+        else: # stationarity check was done in pre-processing
+            curr_epoch_report = current_subject['epochs'][e]
+            if curr_epoch_report['n_diffs'] > 0: # not stationary!!! differencing was applied in this epoch
+                epoch_df, n_diffs, _ = make_stationary(epoch_df, verbose) 
+
+        # 2. apply VAR-LiNGAM
+        if verbose: print("... ***fitting VAR-LiNGAM***", end=', ', flush=True)
+        model = VARLiNGAM(lags=maxlag, criterion=None) # criterion=None: do not search best lags
+        model.fit(epoch_df)
+
+        # adjacency_matrices_: list [B0, B1, ..., Bp]
+        B_mats = model.adjacency_matrices_
+
+        for k in range(len(B_mats)): # k=0,...,maxlag
+            strength = pd.DataFrame(B_mats[k], index=ch_names, columns=ch_names)
+            strength_df[k].append(strength)
+
+
+    # aggregate across epochs (i.e. mean), for each lag
+    for lag,res in strength_df.items():
+        mean_strength[lag] = sum(res) / len(res)
+
+    return mean_strength
+
+
+# varlingam + bootstrap
+def lingam_ecn_boot(epochs, channels, maxlag=4, current_subject=None, verbose=True):
+    """
+    Compute VAR-LiNGAM (time-series) ECN for one subject by aggregating across epochs.
+
+    Parameters
+    ----------
+    epochs : ndarray, shape (n_epochs, n_channels, n_samples)
+    channels : dict, channel numbers mapped to names (e.g. {0:"Fp1", 1:"Fp2", etc.})
+    maxlag : int
+    alpha : float
+        Confidence level used to check independence (i.e. LiNGAM assumption)
+    current_subject : dict, if not None, it means that the stationarity was already checked 
+        during preprocessing. So stationarity check is skipped when not necessary.
+        Default at None.
+
+    Returns
+    -------
     mean_strength : pd.DataFrame (n_channels, n_channels)
     """
 
@@ -50,10 +114,10 @@ def lingam_ecn(epochs, channels, maxlag=4, current_subject=None, verbose=True):
         model.fit(epoch_df)
 
         # reliability: bootstrapping*****lentissimo
-        # print("... bootstrapping ...", end=', ', flush=True)
-        # boot_res = model.bootstrap(epoch_df, n_sampling=10)
-        # print("... getting probabilities", end=', ', flush=True)
-        # probs = boot_res.get_probabilities()
+        print("... bootstrapping ...", end=', ', flush=True)
+        boot_res = model.bootstrap(epoch_df, n_sampling=10)
+        print("... getting probabilities", end=', ', flush=True)
+        probs = boot_res.get_probabilities()
 
 
         # adjacency_matrices_: list [B0, B1, ..., Bp]
@@ -79,7 +143,6 @@ def lingam_ecn(epochs, channels, maxlag=4, current_subject=None, verbose=True):
     #binary_adj = (mean_strength > threshold).astype(int) # *****ha senso tenerlo così?**
 
     return mean_strength#, binary_adj
-
 
 # jackknife for reliability -> leave-one-epoch-out
 def lingam_ecn_jk(epochs, channels, maxlag=4, current_subject=None, verbose=False):
