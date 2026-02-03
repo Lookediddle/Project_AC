@@ -3,6 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.path import Path
 from matplotlib.patches import PathPatch
+import math
 
 # list of str: exact order of channels around the circle
 channel_order = ["C3", "F4", "F3", "Fp2", "Fp1", "Pz", "Cz", "Fz", "T6", "T5", "T4", "T3", "F8", "F7", "O2", "O1", "P4", "P3", "C4"]
@@ -21,7 +22,8 @@ def plot_ecn(
     threshold=1.3,
     ax=None,
     title=None,
-    figsize=(6, 6)
+    figsize=(6, 6),
+    widths=None
 ):
     """
     ECN chord diagram.
@@ -37,6 +39,9 @@ def plot_ecn(
     title : str or None
     figsize : tuple
         Used only if ax is None.
+    widths : pd.DataFrame
+        causal strengths' widths. Rows = targets (Y), Columns = sources (X)
+        Default None. 
 
     Returns
     ----------
@@ -83,6 +88,11 @@ def plot_ecn(
         )
 
     # ---- draw chord diagram ----
+    norm = None
+    if widths is not None: # chord widths
+        # min-max normalization: widths' matrix in [0,1]  
+        norm = norm = (widths - widths.min().min()) / (widths.max().max() - widths.min().min())
+        
     for src in channel_order:        # columns = sources
         for tgt in channel_order:    # rows = targets
             if src == tgt: # skip self
@@ -95,7 +105,11 @@ def plot_ecn(
             p0 = pos[src]
             p2 = pos[tgt]
 
-            draw_chord_arrow(ax, p0, p2, color=channel_colors[src])
+            if norm is not None: # use normalized chord widths            
+                link_w = norm.loc[tgt, src]
+                draw_chord_arrow(ax, p0, p2, color=channel_colors[src], width=link_w)
+            else:
+                draw_chord_arrow(ax, p0, p2, color=channel_colors[src])
 
     if title is not None:
         ax.set_title(title, fontsize=14, pad=20)
@@ -106,7 +120,7 @@ def plot_ecn(
     return ax
 
 
-def draw_chord_arrow(ax, p0, p2, color):
+def draw_chord_arrow(ax, p0, p2, color, width=1):
     """
     Draw a chord from p0 (source node) to p2 (target node).
     """
@@ -130,7 +144,7 @@ def draw_chord_arrow(ax, p0, p2, color):
         path,
         facecolor="none",
         edgecolor=color,
-        linewidth=2,
+        linewidth=3*math.sqrt(width),
         alpha=0.9,
         zorder=2
     )

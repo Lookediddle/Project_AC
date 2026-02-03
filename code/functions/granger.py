@@ -25,13 +25,15 @@ def granger_ecn(epochs, channels, maxlag=4, alpha=0.05, current_subject=None):
 
     Returns
     -------
-    mean_pvals : pd.DataFrame (n_channels, n_channels)
-    binary_adj : pd.DataFrame (n_channels, n_channels)
+    mean_pvals : dict
+        maps each 'up-to-lag' to its pd.DataFrame of causal pvals (n_channels, n_channels)
     """
 
     ch_names = [name for ch,name in channels.items()] # Fp1, Fp2, F3, F4, C3, C4, P3, P4, O1, O2, F7, F8, T3, T4, T5, T6, Fz, Cz, Pz
 
-    all_pvals = []
+    all_pvals_df = {} # lags to pvals
+    for k in range(1,maxlag+1): # 1,...,maxlag
+        all_pvals_df[k] = [] 
 
     for e, epoch in enumerate(epochs):
         print(f"... [epoch {e}]", end='-->', flush=True)
@@ -55,15 +57,18 @@ def granger_ecn(epochs, channels, maxlag=4, alpha=0.05, current_subject=None):
         print('... ***computing Granger***', end=', ', flush=True)
         pvals = granger_causation_matrix(epoch_df, epoch_df.columns, maxlag) 
 
-        all_pvals.append(pvals)
+        for k in range(1, maxlag+1): # granger: only lagged
+            all_pvals_df[k].append(pvals[k])
 
-    # 4. aggregate across epochs (i.e. mean)
-    mean_pvals = sum(all_pvals) / len(all_pvals)
+    # 4. aggregate across epochs (i.e. mean), for each lag
+    mean_pvals = {}
+    for lag,res in all_pvals_df.items():
+        mean_pvals[lag] = sum(res) / len(res)
 
     # 5. ECN adjacency (binary)
-    binary_adj = (mean_pvals < alpha).astype(int)
+    #binary_adj = (mean_pvals < alpha).astype(int)
 
-    return mean_pvals, binary_adj
+    return mean_pvals#, binary_adj
 
 
 # stazionarietà (Granger assumption)
@@ -231,18 +236,22 @@ def granger_causation_matrix(data, variables, maxlag, test = 'ssr_chi2test', ver
 
     Returns
     -----------
-    df (DataFrame) : table of resulting p-values (columns: X, rows: Y).
+    df (DataFrame) : dict 
+        maps each 'up-to-lag' to its table of resulting p-values (columns: X, rows: Y).
     """
-    df = pd.DataFrame(np.zeros((len(variables), len(variables))), columns=variables, index=variables)
+    df={}
+    for lag in range(1, maxlag+1):
+        df[lag] = pd.DataFrame(np.zeros((len(variables), len(variables))), columns=variables, index=variables)
     
     #print(f"- channels: ", end=' ', flush=True)
-    for c in df.columns:
-        for r in df.index:
+    for c in variables: #df.columns:
+        for r in variables: #df.index:
             #print(f"({c}->{r})", end=' ', flush=True) # print channels being analysed
             test_result = grangercausalitytests(data[[r, c]], maxlag, verbose=False)
             p_values = [round(test_result[i+1][0][test][1],4) for i in range(maxlag)]
             if verbose: print(f'Y = {r}, X = {c}, P Values = {p_values}')
-            min_p_value = np.min(p_values)
-            df.loc[r, c] = min_p_value
+            #min_p_value = np.min(p_values)
+            for lag in range(1, maxlag+1):
+                df[lag].loc[r, c] = p_values[lag-1]
 
     return df

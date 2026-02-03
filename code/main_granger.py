@@ -27,10 +27,12 @@ subs_to_groups = {num:label for r,label in ranges for num in r} # e.g. {1:"AD", 
 all_subs_report = load_data("results/20260128_110832_allsubs_stationarity/data/saved_data.pkl")
 
 #%% process ECN
-# results = {
-#     "AD":  {"pvals": [], "bin_adj": []},
-#     "FTD": {"pvals": [], "bin_adj": []},
-#     "CN":  {"pvals": [], "bin_adj": []}}
+# results = {}
+# for lag in range(1,maxlag+1):
+    # results[lag] = {
+    #     "AD":  {"pvals": []},
+    #     "FTD": {"pvals": []},
+    #     "CN":  {"pvals": []}}
 
 # for subj_dir in subjects:
 #     subj_id = subj_dir.name # i.e. 'sub-xxx'
@@ -44,40 +46,63 @@ all_subs_report = load_data("results/20260128_110832_allsubs_stationarity/data/s
     
 #     #%% granger 
 #     curr_sub = all_subs_report[subj_id] # to skip unnecessary stationarity checks
-#     gran_pvals, gran_bin_adj = granger_ecn(epochs, channels, maxlag, alpha, curr_sub)
+#     gran_pvals = granger_ecn(epochs, channels, maxlag, alpha, curr_sub)
     
-#     results[subj_group]["pvals"].append(gran_pvals)
-#     results[subj_group]["bin_adj"].append(gran_bin_adj)
+#     for lag in range(1,maxlag+1):
+#         results[lag][subj_group]["pvals"].append(gran_pvals[lag])
 
 # save_results(results)
-results = load_data("results/20260128_132041_4_lags_gran_allsubs_resample/data/saved_data.pkl")
-
-# # apply Bonferroni correction #****da cancellare secondo me****
-# alpha_new = alpha / maxlag # alpha = alpha/m where m=#tests (i.e. lags)
-# for group, all_ecns in results.items():
-#     for subj in range(0,len(all_ecns["pvals"])):
-#         pvals = all_ecns["pvals"][subj]
-#         binary_adj_new = (pvals == alpha_new).astype(int)
-#         results[group]["bin_adj"][subj] = binary_adj_new
+results = load_data("results/20260203_170946_4_lags_gran_allsubs_no_lags_aggregation/data/saved_data.pkl")
 
 #%% plot ECNs for each group
-ch_names = results["AD"]["pvals"][0].columns # remind indexes' names = columns' names
+ch_names = results[1]["AD"]["pvals"][0].columns # remind indexes' names = columns' names
 pos = {"CN":0,"FTD":1,"AD":2}
 thresh=1 
+max_pval = 1e-12 # if 0 only certain causal links are considered
+
+strengths_groups = {
+    "AD":  {"strength": np.zeros((len(ch_names), len(ch_names)))},
+    "FTD": {"strength": np.zeros((len(ch_names), len(ch_names)))},
+    "CN":  {"strength": np.zeros((len(ch_names), len(ch_names)))}}
+
+for lag,all_groups in results.items():
+    for group,all_ecns in all_groups.items(): # accumulate strengths for each lag 
+
+        # keep highest causal links (i.e. the most certain ones -> p-value<=max_pval for the entire group!)
+        pvals_group_mean_curr_lag = np.mean(all_ecns["pvals"], axis=0)
+
+        # convert to binary
+        strength_group_curr_lag = (np.round(pvals_group_mean_curr_lag,4) <= max_pval).astype(int) 
+        
+        # accumulate strengths for current lag 
+        strengths_groups[group]["strength"] += strength_group_curr_lag
+
 
 fig, axes = plt.subplots(1, 3, figsize=(13, 6), constrained_layout=True)
-for group, all_ecns in results.items():
+for group, ecn in strengths_groups.items(): 
+    e = ecn["strength"]
+    strength_group_df = pd.DataFrame(e, index=ch_names, columns=ch_names)
     
-    # keep highest causal links (i.e. the certain ones -> p-value=0 for the entire group!)
-    pvals_group_mean = np.mean(results[group]["pvals"], axis=0)
-    strength_group = (np.round(pvals_group_mean,4) == 0).astype(int) 
-        
-    strength_group_df = pd.DataFrame(
-            strength_group, index=ch_names, columns=ch_names)
-    
-    plot_ecn(strength_group_df, thresh, ax=axes[pos[group]], title=group)
+    plot_ecn(strength_group_df, thresh, ax=axes[pos[group]], title=group, widths=strength_group_df)
 fig.suptitle(f"Granger (highest vals, th={thresh})", fontsize=16)
 #plt.tight_layout() # useless if constrained_layout=True
 plt.show()
 
 save_results() # save figures
+
+# fig, axes = plt.subplots(1, 3, figsize=(13, 6), constrained_layout=True)
+# for group, all_ecns in results.items():
+    
+#     # keep highest causal links (i.e. the certain ones -> p-value=0 for the entire group!)
+#     pvals_group_mean = np.mean(results[group]["pvals"], axis=0)
+#     strength_group = (np.round(pvals_group_mean,4) == 0).astype(int) 
+        
+#     strength_group_df = pd.DataFrame(
+#             strength_group, index=ch_names, columns=ch_names)
+    
+#     plot_ecn(strength_group_df, thresh, ax=axes[pos[group]], title=group)
+# fig.suptitle(f"Granger (highest vals, th={thresh})", fontsize=16)
+# #plt.tight_layout() # useless if constrained_layout=True
+# plt.show()
+
+# save_results() # save figures
