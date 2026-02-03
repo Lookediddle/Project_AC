@@ -9,7 +9,7 @@ maxlag = 4
 alpha = 0.05
 
 #%% load and segment
-subj_id = 'sub-017'
+subj_id = 'sub-040'
 filepath = f"../dataset/derivatives/{subj_id}/eeg/{subj_id}_task-eyesclosed_eeg.set"
 eeg, fs, channels = load_eeg(filepath, resample=fs_res, preload=True)
 
@@ -22,7 +22,7 @@ print(epochs.shape)
 #%% lingam
 all_subs_report = load_data("results/20260128_110832_allsubs_stationarity/data/saved_data.pkl")
 sub = all_subs_report[subj_id] # to skip unnecessary stationarity checks
-ling_strength = lingam_ecn(epochs, channels, maxlag, current_subject=sub)
+ling_strength, ling_pvals = lingam_ecn(epochs, channels, maxlag, current_subject=sub)
 
 # jackknife
 # ling_strength = lingam_ecn(epochs, channels, maxlag, current_subject=sub)

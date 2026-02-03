@@ -4,6 +4,8 @@ import pandas as pd
 from lingam import VARLiNGAM
 import numpy as np
 from .granger import make_stationary
+from statsmodels.tsa.api import VAR
+from scipy.stats import chi2 # for Wald test on VAR coefs
 
 # time series
 def lingam_ecn(epochs, channels, maxlag=4, current_subject=None, verbose=True):
@@ -28,11 +30,13 @@ def lingam_ecn(epochs, channels, maxlag=4, current_subject=None, verbose=True):
     """
 
     ch_names = [name for _, name in channels.items()]
+    n_channels = len(ch_names)
     strength_df = {} # {lag:strength_matrix}, e.g.: {0:B0, ..., maxlag:Bmaxlag}
-    mean_strength = {} # "
+    all_pvals_df = {} # lags to pvals, test on VAR coefficients
     for k in range(maxlag+1):
         strength_df[k] = [] # init
-        mean_strength[k] = []
+        if k != 0: # not istantaneous! only for VAR coefficients (i.e. lags)
+            all_pvals_df[k] = [] 
 
     for e, epoch in enumerate(epochs):
         if verbose: print(f"... [epoch {e}]", end='-->', flush=True)
@@ -54,19 +58,97 @@ def lingam_ecn(epochs, channels, maxlag=4, current_subject=None, verbose=True):
         model = VARLiNGAM(lags=maxlag, criterion=None) # criterion=None: do not search best lags
         model.fit(epoch_df)
 
-        # adjacency_matrices_: list [B0, B1, ..., Bp]
-        B_mats = model.adjacency_matrices_
+        B_mats = model.adjacency_matrices_ # adjacency_matrices_: list [B0, B1, ..., Bp]
+
+        # if verbose: print("... independence pvalues ...", end=', ', flush=True)
+        # pvals_independence = model.get_error_independence_p_values() #****solo su B0 istantanea
 
         for k in range(len(B_mats)): # k=0,...,maxlag
             strength = pd.DataFrame(B_mats[k], index=ch_names, columns=ch_names)
             strength_df[k].append(strength)
 
+        # 3. confidence: test on VAR coefficients (lagged effects only)
+        if verbose: print('...test VAR params...', end=' ', flush=True)
+        var_model = VAR(epoch_df)
+        var_res = var_model.fit(maxlag, trend='n') # == VAR in VAR-LiNGAM
+
+        for k in range(1, maxlag+1): # not 0, only lagged
+            pvals = pd.DataFrame(
+                np.ones((n_channels, n_channels)),
+                index=ch_names,
+                columns=ch_names
+            )
+
+            for ch_to in ch_names:
+                for ch_frm in ch_names:
+                    if ch_to == ch_frm: 
+                        continue
+
+                    _, pvals.loc[ch_to, ch_frm] = wald_test_var_coef(var_res, ch_to, ch_frm, k)
+
+            all_pvals_df[k].append(pvals)
+
+
+        # pvals = var_res.pvalues # p-values for model coefficients from Student t-distribution
+        # for lag in range(1, maxlag+1):
+        #     pval_df = pd.DataFrame( # init
+        #         np.ones((len(ch_names), len(ch_names))),
+        #         index=ch_names,
+        #         columns=ch_names
+        #     )
+        #     for to in ch_names:
+        #         for frm in ch_names:
+        #             if to == frm:
+        #                 continue
+
+        #             param = f"L{lag}.{frm}"
+        #             if param in pvals.index:
+        #                 pval_df.loc[to, frm] = pvals.loc[param, to]
+            
+        #     all_pvals_df[lag].append(pval_df)
+
 
     # aggregate across epochs (i.e. mean), for each lag
+    mean_strength = {}
     for lag,res in strength_df.items():
         mean_strength[lag] = sum(res) / len(res)
+    
+    mean_pvals = {}
+    for lag,res in all_pvals_df.items():
+        mean_pvals[lag] = sum(res) / len(res)
 
-    return mean_strength
+    return mean_strength, mean_pvals
+
+
+# Wald test on VAR coefficients
+def wald_test_var_coef(var_res, ch_to, ch_frm, k):
+    """
+    Wald test for H0: A_k(ch_to,ch_frm) = 0 (i.e. no causal strength),
+    where A_k(ch_to,ch_frm) is a VAR coefficient at lag k.
+
+    Returns
+    -------
+    W : float
+        Wald statistic
+    p_value : float
+    """
+
+    param = f"L{k}.{ch_frm}"
+    if param not in var_res.params.index:
+        raise ValueError(f"Coefficient label {param} doesn't exist.")
+
+    # coefficient estimate
+    theta_hat = var_res.params.loc[param, ch_to]
+
+    # variance estimate
+    cov = var_res.cov_params()
+    var_theta = cov.loc[(param, ch_to), (param, ch_to)]
+
+    # Wald
+    W = (theta_hat ** 2) / var_theta
+    p_value = 1 - chi2.cdf(W, df=1)
+
+    return W, p_value
 
 
 # varlingam + bootstrap
