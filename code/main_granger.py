@@ -60,24 +60,21 @@ pos = {"CN":0,"FTD":1,"AD":2}
 thresh=1 # at least 1 pval across lags 
 max_pval = 1e-12 # if 0: only certain causal links are considered
 
+# create strengths: accumulate accepted pvals across lags
 strengths_groups = {
     "AD":  {"strength": np.zeros((len(ch_names), len(ch_names)))},
     "FTD": {"strength": np.zeros((len(ch_names), len(ch_names)))},
     "CN":  {"strength": np.zeros((len(ch_names), len(ch_names)))}}
 
 for lag,all_groups in results.items():
-    for group,all_ecns in all_groups.items(): # accumulate strengths for each lag 
-
+    for group,all_ecns in all_groups.items():
         # keep highest causal links (i.e. the most certain ones -> p-value<=max_pval for the entire group!)
         pvals_group_mean_curr_lag = np.mean(all_ecns["pvals"], axis=0)
-
-        # convert to binary (1->link; 0->no link)
-        strength_group_curr_lag = (np.round(pvals_group_mean_curr_lag,4) <= max_pval).astype(int) 
-        
+        strength_group_curr_lag = (np.round(pvals_group_mean_curr_lag,4) <= max_pval).astype(int) # binary (1->link; 0->no link)
         # accumulate strengths for current lag 
         strengths_groups[group]["strength"] += strength_group_curr_lag
 
-
+# plot results for each group
 fig, axes = plt.subplots(1, 3, figsize=(13, 6), constrained_layout=True)
 for group, ecn in strengths_groups.items(): 
     e = ecn["strength"]
