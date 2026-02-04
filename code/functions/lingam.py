@@ -169,11 +169,19 @@ def lingam_ecn_boot(epochs, channels, maxlag=4, current_subject=None, verbose=Tr
 
     Returns
     -------
-    mean_strength : pd.DataFrame (n_channels, n_channels)
+    mean_strengths : dict
+        maps each lag to its pd.DataFrame of causal strengths (n_channels, n_channels)
+    mean_probs : dict
+        maps each lag to its pd.DataFrame of causal bootstrap probabilities (n_channels, n_channels)
     """
 
     ch_names = [name for _, name in channels.items()]
-    all_strengths = []
+    
+    all_strengths_df = {} # ist&lags to strengths
+    all_probs_df = {} # ist&lags to probabilities
+    for k in range(maxlag+1): # 0 (istantaneous), 1, ..., maxlag
+        all_strengths_df[k] = []
+        all_probs_df[k] = []
 
     for e, epoch in enumerate(epochs):
         if verbose: print(f"... [epoch {e}]", end='-->', flush=True)
@@ -192,39 +200,35 @@ def lingam_ecn_boot(epochs, channels, maxlag=4, current_subject=None, verbose=Tr
 
         # 2. apply VAR-LiNGAM
         if verbose: print("... ***fitting VAR-LiNGAM***", end=', ', flush=True)
-        model = VARLiNGAM(lags=maxlag, criterion=None) # criterion=None: do not search best lags
+        model = VARLiNGAM(lags=maxlag, criterion=None, prune=False) # criterion=None: do not search best lags
         model.fit(epoch_df)
 
-        # reliability: bootstrapping*****lentissimo
-        print("... bootstrapping ...", end=', ', flush=True)
-        boot_res = model.bootstrap(epoch_df, n_sampling=10)
-        print("... getting probabilities", end=', ', flush=True)
-        probs = boot_res.get_probabilities()
-
-
         # adjacency_matrices_: list [B0, B1, ..., Bp]
-        B_mats = model.adjacency_matrices_
+        B_mats = model.adjacency_matrices_.copy()
 
-        lagged_strength = np.zeros_like(B_mats[0]) # aggregate causal effects (instantaneous and lagged (k=1,...,maxlag))
+        # reliability: bootstrapping
+        print("... bootstrapping", end=', ', flush=True)
+        boot_res = model.bootstrap_optimized(epoch_df, n_sampling=10, fit_done=True)
+        print("... get probabilities", end=', ', flush=True)
+        probs = boot_res.get_probabilities(min_causal_effect=0.2) # as in VARLiNGAM example
 
-        for k in range(len(B_mats)): # k=0,...,maxlag
-            lagged_strength = np.maximum(lagged_strength, np.abs(B_mats[k]))
+        for k in range(maxlag+1): # k=0,...,maxlag
+            B_df = pd.DataFrame(B_mats[k], index=ch_names, columns=ch_names)
+            all_strengths_df[k].append(B_df)
 
+            probs_df = pd.DataFrame(probs[k], index=ch_names, columns=ch_names)
+            all_probs_df[k].append(probs_df)
 
-        strength_df = pd.DataFrame(
-            lagged_strength,
-            index=ch_names,
-            columns=ch_names
-        )
+    # aggregate across epochs (i.e. mean), for each lag
+    mean_strengths = {}
+    for lag,res in all_strengths_df.items():
+        mean_strengths[lag] = sum(res) / len(res)
+    
+    mean_probs = {}
+    for lag,res in all_probs_df.items():
+        mean_probs[lag] = sum(res) / len(res)
 
-        all_strengths.append(strength_df)
-
-    # aggregate across epochs (i.e. mean)
-    mean_strength = sum(all_strengths) / len(all_strengths)
-
-    #binary_adj = (mean_strength > threshold).astype(int) # *****ha senso tenerlo così?**
-
-    return mean_strength#, binary_adj
+    return mean_strengths, mean_probs
 
 # jackknife for reliability -> leave-one-epoch-out
 def lingam_ecn_jk(epochs, channels, maxlag=4, current_subject=None, verbose=False):

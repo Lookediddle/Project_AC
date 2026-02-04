@@ -20,10 +20,13 @@ all_subs_report = load_data("results/20260128_110832_allsubs_stationarity/data/s
 sub = all_subs_report[subj_id] # to skip unnecessary stationarity checks
 
 #%% granger 
-gran_pvals = granger_ecn(epochs, channels, maxlag=4, alpha=0.05, current_subject=sub)
+#gran_pvals = granger_ecn(epochs, channels, maxlag=4, alpha=0.05, current_subject=sub)
 
 #%% lingam
-ling_strength, ling_pvals = lingam_ecn(epochs, channels, maxlag, current_subject=sub)
+#ling_strength, ling_pvals = lingam_ecn(epochs, channels, maxlag, current_subject=sub)
+
+# bootstrap
+ling_strength, ling_probs = lingam_ecn_boot(epochs, channels, maxlag, current_subject=sub)
 
 # jackknife
 # ling_strength = lingam_ecn(epochs, channels, maxlag, current_subject=sub)

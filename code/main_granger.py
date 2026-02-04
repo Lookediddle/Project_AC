@@ -29,10 +29,10 @@ all_subs_report = load_data("results/20260128_110832_allsubs_stationarity/data/s
 #%% process ECN
 # results = {}
 # for lag in range(1,maxlag+1):
-    # results[lag] = {
-    #     "AD":  {"pvals": []},
-    #     "FTD": {"pvals": []},
-    #     "CN":  {"pvals": []}}
+#     results[lag] = {
+#         "AD":  {"pvals": []},
+#         "FTD": {"pvals": []},
+#         "CN":  {"pvals": []}}
 
 # for subj_dir in subjects:
 #     subj_id = subj_dir.name # i.e. 'sub-xxx'
