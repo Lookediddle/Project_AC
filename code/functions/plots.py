@@ -19,7 +19,7 @@ channel_colors = {
 
 def plot_ecn(
     strength,
-    threshold=1.3,
+    threshold=0.1,
     ax=None,
     title=None,
     figsize=(6, 6),
@@ -107,7 +107,8 @@ def plot_ecn(
 
             if norm is not None: # use normalized chord widths            
                 link_w = norm.loc[tgt, src]
-                draw_chord_arrow(ax, p0, p2, color=channel_colors[src], width=link_w)
+                stretched_w = math.e**link_w - 1 # x = e^x - 1
+                draw_chord_arrow(ax, p0, p2, color=channel_colors[src], width=stretched_w)
             else:
                 draw_chord_arrow(ax, p0, p2, color=channel_colors[src])
 

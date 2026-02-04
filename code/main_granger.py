@@ -57,8 +57,8 @@ results = load_data("results/20260203_170946_4_lags_gran_allsubs_no_lags_aggrega
 #%% plot ECNs for each group
 ch_names = results[1]["AD"]["pvals"][0].columns # remind indexes' names = columns' names
 pos = {"CN":0,"FTD":1,"AD":2}
-thresh=1 
-max_pval = 1e-12 # if 0 only certain causal links are considered
+thresh=1 # at least 1 pval across lags 
+max_pval = 1e-12 # if 0: only certain causal links are considered
 
 strengths_groups = {
     "AD":  {"strength": np.zeros((len(ch_names), len(ch_names)))},
@@ -71,7 +71,7 @@ for lag,all_groups in results.items():
         # keep highest causal links (i.e. the most certain ones -> p-value<=max_pval for the entire group!)
         pvals_group_mean_curr_lag = np.mean(all_ecns["pvals"], axis=0)
 
-        # convert to binary
+        # convert to binary (1->link; 0->no link)
         strength_group_curr_lag = (np.round(pvals_group_mean_curr_lag,4) <= max_pval).astype(int) 
         
         # accumulate strengths for current lag 
@@ -84,7 +84,7 @@ for group, ecn in strengths_groups.items():
     strength_group_df = pd.DataFrame(e, index=ch_names, columns=ch_names)
     
     plot_ecn(strength_group_df, thresh, ax=axes[pos[group]], title=group, widths=strength_group_df)
-fig.suptitle(f"Granger (highest vals, th={thresh})", fontsize=16)
+fig.suptitle(f"Granger, avg groups (pv_group={max_pval}, th=pv_ok_count={thresh})", fontsize=16)
 #plt.tight_layout() # useless if constrained_layout=True
 plt.show()
 
