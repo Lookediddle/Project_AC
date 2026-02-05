@@ -206,7 +206,7 @@ def lingam_ecn_boot(epochs, channels, maxlag=4, current_subject=None, verbose=Tr
         # adjacency_matrices_: list [B0, B1, ..., Bp]
         B_mats = model.adjacency_matrices_.copy()
 
-        # reliability: bootstrapping
+        # reliability: bootstrapping - (***@jit, my optimization: from https://github.com/cdt15/lingam/issues/130 ***)
         print("... bootstrapping", end=', ', flush=True)
         boot_res = model.bootstrap_optimized(epoch_df, n_sampling=10, fit_done=True)
         print("... get probabilities", end=', ', flush=True)

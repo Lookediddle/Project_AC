@@ -1,3 +1,4 @@
+- bootstrap optimized (n_sampling=10): 7 ore circa (forse qualcosa meno)
 - bootstrap (n_sampling=10...): mezzora solo per un'epoch di un soggetto!!!
 
 vecchi:

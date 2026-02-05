@@ -107,7 +107,8 @@ def plot_ecn(
 
             if norm is not None: # use normalized chord widths            
                 link_w = norm.loc[tgt, src]
-                stretched_w = 3.5*link_w#(math.e**link_w - 1) # x = 2 * (e^x - 1)
+                #stretched_w = 5*link_w # linear
+                stretched_w = (5 / (math.e - 1)) * (math.e**link_w - 1) # exponential: x = (5/(e-1)) * (e^x - 1)
                 draw_chord_arrow(ax, p0, p2, color=channel_colors[src], width=stretched_w)
             else:
                 draw_chord_arrow(ax, p0, p2, color=channel_colors[src])
