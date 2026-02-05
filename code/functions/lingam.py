@@ -210,7 +210,7 @@ def lingam_ecn_boot(epochs, channels, maxlag=4, current_subject=None, verbose=Tr
         print("... bootstrapping", end=', ', flush=True)
         boot_res = model.bootstrap_optimized(epoch_df, n_sampling=10, fit_done=True)
         print("... get probabilities", end=', ', flush=True)
-        probs = boot_res.get_probabilities(min_causal_effect=0.2) # as in VARLiNGAM example
+        probs = boot_res.get_probabilities(min_causal_effect=1e-12) #***min_causal_effect=0.2) # as in VARLiNGAM example
 
         for k in range(maxlag+1): # k=0,...,maxlag
             B_df = pd.DataFrame(B_mats[k], index=ch_names, columns=ch_names)
