@@ -100,8 +100,8 @@ def plot_ecn(strength, threshold=0.1, ax=None, title=None, figsize=(6, 6), width
 
             if widths is not None: # use chord widths            
                 link_w = widths.loc[tgt, src]
-                #stretched_w = 5*link_w # linear
-                stretched_w = (5 / (math.e - 1)) * (math.e**link_w - 1) # exponential: x = (5/(e-1)) * (e^x - 1)
+                stretched_w = 5*link_w # linear
+                #stretched_w = (5 / (math.e - 1)) * (math.e**link_w - 1) # exponential: x = (5/(e-1)) * (e^x - 1)
                 draw_chord_arrow(ax, p0, p2, color=channel_colors[src], width=stretched_w)
             else:
                 draw_chord_arrow(ax, p0, p2, color=channel_colors[src])
