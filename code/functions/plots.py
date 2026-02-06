@@ -17,14 +17,7 @@ channel_colors = {
     "T6":  "#A6E6BF", "Fz":  "#737333", "Cz":  "#E6BFA6"
 }
 
-def plot_ecn(
-    strength,
-    threshold=0.1,
-    ax=None,
-    title=None,
-    figsize=(6, 6),
-    widths=None
-):
+def plot_ecn(strength, threshold=0.1, ax=None, title=None, figsize=(6, 6), widths=None):
     """
     ECN chord diagram.
 
@@ -88,10 +81,10 @@ def plot_ecn(
         )
 
     # ---- draw chord diagram ----
-    norm = None
-    if widths is not None: # chord widths
-        # min-max normalization: widths' matrix in [0,1]  
-        norm = norm = (widths - widths.min().min()) / (widths.max().max() - widths.min().min())
+    # norm = None
+    # if widths is not None: # chord widths
+    #     # min-max normalization: widths' matrix in [0,1]  
+    #     norm = (widths - widths.min().min()) / (widths.max().max() - widths.min().min())
         
     for src in channel_order:        # columns = sources
         for tgt in channel_order:    # rows = targets
@@ -105,8 +98,8 @@ def plot_ecn(
             p0 = pos[src]
             p2 = pos[tgt]
 
-            if norm is not None: # use normalized chord widths            
-                link_w = norm.loc[tgt, src]
+            if widths is not None: # use chord widths            
+                link_w = widths.loc[tgt, src]
                 #stretched_w = 5*link_w # linear
                 stretched_w = (5 / (math.e - 1)) * (math.e**link_w - 1) # exponential: x = (5/(e-1)) * (e^x - 1)
                 draw_chord_arrow(ax, p0, p2, color=channel_colors[src], width=stretched_w)
