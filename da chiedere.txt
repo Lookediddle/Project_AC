@@ -1,0 +1,23 @@
+---------- Granger -> time-series analysis ----------
+- p-values:
+tutti p-values a 0?!
+
+- causal strength:
+non trovo modo di vedere rispettive causal strengths (non definite temo per Granger...)
+
+
+---------- LINGAM -> istantaneous analisys ----------
+- compless. computaz.
+istantaneo ok, ma lag-version (VAR-LiNGAM) lentissima (anche con lags=1): posso tenere solo istantaneo? equivale a lingam base alla fine
+
+- plot threshold strength:
+quale hanno usato nel paper fig.4?
+
+- come interpretare strengths negative? non le considero o uso abs?
+
+- affidabilità:
+non trovo modo di vedere rispettivi p-values
+
+
+
+

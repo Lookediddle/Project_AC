@@ -34,7 +34,8 @@ def load_eeg(filepath, resample=None, preload=True):
     if resample is not None:
         raw = raw.resample(sfreq=resample, npad="auto")
     eeg_data = raw.get_data() # shape (n_channels, n_samples)
-
+    #print(raw.info) # general infos
+    #raw.plot()
     sfreq = raw.info["sfreq"] # Fs
     ch_names = raw.info["ch_names"] # Fp1, Fp2, F3, F4, C3, C4, P3, P4, O1, O2, F7, F8, T3, T4, T5, T6, Fz, Cz, Pz
     
