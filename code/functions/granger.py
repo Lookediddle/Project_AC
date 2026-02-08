@@ -211,12 +211,13 @@ def select_p(data_df):
                                     'BIC': bic, 
                                     'HQIC': hqic,
                                     'FPE': fpe}, 
-                                   index=p)    
-    fig, ax = plt.subplots(1, 4, figsize=(15, 3), sharex=True)
+                                   index=p)  
+    fig, ax = plt.subplots(1, 4, figsize=(12, 3), sharex=True)
     lags_metrics_df.plot(subplots=True, ax=ax, marker='o')
     plt.tight_layout()
     for a in ax:
         a.grid(True)
+        a.set_xlabel('Lags', labelpad=0)
     print(lags_metrics_df.idxmin(axis=0))
 
 # Granger 
