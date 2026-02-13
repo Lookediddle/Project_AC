@@ -27,35 +27,35 @@ subs_to_groups = {num:label for r,label in ranges for num in r} # e.g. {1:"AD", 
 all_subs_report = load_data("results/20260128_110832_allsubs_stationarity/data/saved_data.pkl")
 
 #%% process ECN
-# results = {}
-# for lag in range(maxlag+1): # 0,...,maxlag
-#     results[lag] = {
-#         "AD":  {"strengths": [], "probs": []},
-#         "FTD": {"strengths": [], "probs": []},
-#         "CN":  {"strengths": [], "probs": []}}
+results = {}
+for lag in range(maxlag+1): # 0,...,maxlag
+    results[lag] = {
+        "AD":  {"strengths": [], "probs": []},
+        "FTD": {"strengths": [], "probs": []},
+        "CN":  {"strengths": [], "probs": []}}
 
-# for subj_dir in subjects:
-#     subj_id = subj_dir.name # i.e. 'sub-xxx'
-#     subj_group = subs_to_groups[int(subj_id[-3:])] # i.e. int('xxx')
-#     print(f"\n- {subj_id} -", end=' ', flush=True)
+for subj_dir in subjects:
+    subj_id = subj_dir.name # i.e. 'sub-xxx'
+    subj_group = subs_to_groups[int(subj_id[-3:])] # i.e. int('xxx')
+    print(f"\n- {subj_id} -", end=' ', flush=True)
 
-#     #%% preprocessing: load and segment
-#     filepath = list((subj_dir / "eeg").glob("*_eeg.set"))[0]
-#     eeg, _, channels = load_eeg(filepath, resample=fs_res, preload=True) # notice resampling!
-#     epochs = split_epochs(eeg, n_epochs=n_epochs) # split into 10 equal segments
+    #%% preprocessing: load and segment
+    filepath = list((subj_dir / "eeg").glob("*_eeg.set"))[0]
+    eeg, _, channels = load_eeg(filepath, resample=fs_res, preload=True) # notice resampling!
+    epochs = split_epochs(eeg, n_epochs=n_epochs) # split into 10 equal segments
         
-#     #%% lingam
-#     sub = all_subs_report[subj_id] # to skip unnecessary stationarity checks
-#     # lingam+bootstrap
-#     ling_strength, ling_probs = lingam_ecn_boot(epochs, channels, maxlag, current_subject=sub)
-#     #***ling_strength = lingam_ecn(epochs, channels, maxlag, current_subject=sub)
+    #%% lingam
+    sub = all_subs_report[subj_id] # to skip unnecessary stationarity checks
+    # lingam+bootstrap
+    ling_strength, ling_probs = lingam_ecn_boot(epochs, channels, maxlag, current_subject=sub)
+    #***ling_strength = lingam_ecn(epochs, channels, maxlag, current_subject=sub)
 
-#     for lag in range(maxlag+1): # 0,...,maxlag
-#         results[lag][subj_group]["strengths"].append(ling_strength[lag])
-#         results[lag][subj_group]["probs"].append(ling_probs[lag])
+    for lag in range(maxlag+1): # 0,...,maxlag
+        results[lag][subj_group]["strengths"].append(ling_strength[lag])
+        results[lag][subj_group]["probs"].append(ling_probs[lag])
 
-# save_results(results)
-results = load_data("results/20260204_201717_4_lags_ling-bootstrap_allsubs_no_lags_aggregation/data/saved_data.pkl")
+save_results(results)
+#results = load_data("results/20260204_201717_4_lags_ling-bootstrap_allsubs_no_lags_aggregation/data/saved_data.pkl")
 
 #%% plot ECNs for each group
 ch_names = results[0]["AD"]["strengths"][0].columns # remind indexes' names = columns' names
@@ -86,7 +86,7 @@ for group in res_groups.keys():
             s = results[lag][group]["strengths"][subj]
             p = results[lag][group]["probs"][subj]
 
-            mask = (p >= min_prob) # keep only strengths w higher probabilities
+            mask = (p >= min_prob) # keep only strengths w/ higher probabilities
             s_masked = np.where(mask, s, 0.0)
 
             subj_strength_sum += s_masked
