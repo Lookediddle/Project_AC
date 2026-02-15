@@ -27,25 +27,9 @@ gran_pvals = granger_ecn(epochs, channels, maxlag=4, current_subject=sub, ic=Tru
 
 # bootstrap
 ling_strength, ling_probs = lingam_ecn_boot(epochs, channels, maxlag, current_subject=sub)
-
+# wald test
+# ling_strength = lingam_ecn_wald(epochs, channels, maxlag, current_subject=sub)
 # jackknife
-# ling_strength = lingam_ecn(epochs, channels, maxlag, current_subject=sub)
 # ling_std = lingam_ecn_jk(epochs, channels, maxlag, current_subject=sub)
 
-# no lags
-#ling_strength, ling_bin_adj = lingam_ecn_no_lags(epochs, channels)
-
-#%% load results
-#channels, gran_pvals, gran_strength, gran_bin_adj, ling_strength, ling_bin_adj = load_data("results/20260121_162827_no_lags_ling/data/saved_data.pkl")
-#channels, gran_pvals, gran_strength, gran_bin_adj, _, _ = load_data("results/20260121_162827_no_lags_ling/data/saved_data.pkl")
-
-#%% plot ECNs
-#plot_ecn(gran_strength, title="Granger ECN", threshold=2.0)  # p < 0.01
-plot_ecn(ling_strength, title="LiNGAM ECN", threshold=1)
-
-#%% save results
-# res_granger = {"gran_pvals":gran_pvals, "gran_strength":gran_strength, "gran_bin_adj":gran_bin_adj}
-# res_lingam = {"ling_strength":ling_strength, "ling_bin_adj":ling_bin_adj}
-# res={"channels":channels, "granger":res_granger, "lingam":res_lingam}
-# save_results(res)
 print('the end')
