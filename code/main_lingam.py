@@ -56,17 +56,17 @@ print('--- VAR-LiNGAM causality ---')
 #         results[lag][subj_group]["probs"].append(ling_probs[lag])
 
 # save_results(results)
-results = load_data("results/20260215_154600_ling-bootstrap_minefx0_2_plots_th80_prob95/data/saved_data.pkl")
+results = load_data("results/20260215_154600_ling-bootstrap_minefx0_2_plots_th80_prob95_agg1/data/saved_data.pkl")
 
 #%% aggregate ECNs for each group
-ch_names = results[0]["AD"]["strengths"][0].columns # remind indexes' names = columns' names
-pos = {"CN":0,"FTD":1,"AD":2}
-thresh_pct=80 # strengths threshold (percentile)
-min_prob = 0.95 # ~alpha=0.05
-
-res_groups = aggregate_lingam(results, min_prob) # strengths and probabilities
+min_prob = 0.80 # ~alpha=0.05
+res_groups = aggregate_lingam2(results, min_prob) # strengths and probabilities
 
 #%% plot ECNs for each group
+ch_names = results[0]["AD"]["strengths"][0].columns # remind indexes' names = columns' names
+pos = {"CN":0,"FTD":1,"AD":2}
+thresh_pct=0 # strengths threshold (percentile)
+
 all_strengths, all_n_probs = [], []
 for group, ecn in res_groups.items(): 
     s = np.abs(ecn["strength"])
@@ -78,7 +78,7 @@ min_thresh = np.percentile(all_strengths, thresh_pct) # global threshold for str
 fig, axes = plt.subplots(1, 3, figsize=(13, 6), constrained_layout=True) 
 for group, ecn in res_groups.items():
         s = np.abs(ecn["strength"])
-        p = ecn["n_probs"]
+        p = ecn["n_probs"] # already in [0,1]
 
         strength_group_df = pd.DataFrame(s, index=ch_names, columns=ch_names)
         p_norm_group_df = pd.DataFrame(p, index=ch_names, columns=ch_names)

@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.path import Path
 from matplotlib.patches import PathPatch
+import math
 
 # list of str: exact order of channels around the circle
 channel_order = ["C3", "F4", "F3", "Fp2", "Fp1", "Pz", "Cz", "Fz", "T6", "T5", "T4", "T3", "F8", "F7", "O2", "O1", "P4", "P3", "C4"]
@@ -92,8 +93,8 @@ def plot_ecn(strength, threshold=0.1, ax=None, title=None, figsize=(6, 6), width
 
             if widths is not None: # use chord widths            
                 link_w = widths.loc[tgt, src]
-                stretched_w = 5*link_w # linear
-                #stretched_w = (5 / (math.e - 1)) * (math.e**link_w - 1) # exponential: x = (5/(e-1)) * (e^x - 1)
+                #stretched_w = 5*link_w # linear
+                stretched_w = (5 / (math.e - 1)) * (math.e**link_w - 1) # exponential: x = (5/(e-1)) * (e^x - 1)
                 draw_chord_arrow(ax, p0, p2, color=channel_colors[src], width=stretched_w)
             else:
                 draw_chord_arrow(ax, p0, p2, color=channel_colors[src])

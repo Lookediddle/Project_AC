@@ -53,20 +53,20 @@ print('--- Granger causality ---')
 #         results[lag][subj_group]["pvals"].append(gran_pvals[lag])
 
 # save_results(results)
-results = load_data("results/20260215_154921_gran_final_plots_th80_alpha0_05/data/saved_data.pkl")
+results = load_data("results/20260215_183555_gran_plots_th99_alpha0_01_agg2/data/saved_data.pkl")
 
 #%% aggregate ECNs for each group
-ch_names = results[1]["AD"]["pvals"][0].columns # remind indexes' names = columns' names
-pos = {"CN":0,"FTD":1,"AD":2}
-thresh_pct=80 # strengths threshold (percentile) 
-max_pval = alpha # if close to 0, only most certain causal links are considered
-
-strengths_groups = aggregate_granger(results, max_pval) # empirical strengths in [0,1] (proportional to lag contribute)
+max_pval = 0.01 # if close to 0, only most certain causal links are considered
+strengths_groups = aggregate_granger2(results, max_pval) # empirical strengths in [0,1] (proportional to lag contribute)
 
 #%% plot ECNs for each group
+ch_names = results[1]["AD"]["pvals"][0].columns # remind indexes' names = columns' names
+pos = {"CN":0,"FTD":1,"AD":2}
+thresh_pct=99 # strengths threshold (percentile) 
+
 all_strengths, all_n_probs = [], []
 for group, ecn in strengths_groups.items(): 
-    s = ecn["strength"].to_numpy()
+    s = np.abs(ecn["strength"])
     all_strengths.append(s.ravel()) # 2D->1D
 all_strengths = np.concatenate(all_strengths)
 min_thresh = np.percentile(all_strengths, thresh_pct) # global threshold for strengths!
@@ -74,7 +74,7 @@ min_thresh = np.percentile(all_strengths, thresh_pct) # global threshold for str
 # plot results for each group
 fig, axes = plt.subplots(1, 3, figsize=(13, 6), constrained_layout=True) 
 for group, ecn in strengths_groups.items():
-        s = ecn["strength"].to_numpy() # already in [0,1]
+        s = np.abs(ecn["strength"]) # already in [0,1]
         strength_group_df = pd.DataFrame(s, index=ch_names, columns=ch_names)
         plot_ecn(strength_group_df, min_thresh, ax=axes[pos[group]], title=group, widths=strength_group_df)
 
