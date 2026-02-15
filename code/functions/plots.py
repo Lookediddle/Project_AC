@@ -1,9 +1,7 @@
 import numpy as np
-#from mne_connectivity.viz import plot_connectivity_circle
 import matplotlib.pyplot as plt
 from matplotlib.path import Path
 from matplotlib.patches import PathPatch
-import math
 
 # list of str: exact order of channels around the circle
 channel_order = ["C3", "F4", "F3", "Fp2", "Fp1", "Pz", "Cz", "Fz", "T6", "T5", "T4", "T3", "F8", "F7", "O2", "O1", "P4", "P3", "C4"]
@@ -33,7 +31,7 @@ def plot_ecn(strength, threshold=0.1, ax=None, title=None, figsize=(6, 6), width
     figsize : tuple
         Used only if ax is None.
     widths : pd.DataFrame
-        causal strengths' widths. Rows = targets (Y), Columns = sources (X)
+        widths for causal links. Rows = targets (Y), Columns = sources (X)
         Default None. 
 
     Returns
@@ -76,16 +74,10 @@ def plot_ecn(strength, threshold=0.1, ax=None, title=None, figsize=(6, 6), width
             ch,
             ha="center",
             va="center",
-            fontsize=11,
-            #fontweight="bold"
+            fontsize=11
         )
 
-    # ---- draw chord diagram ----
-    # norm = None
-    # if widths is not None: # chord widths
-    #     # min-max normalization: widths' matrix in [0,1]  
-    #     norm = (widths - widths.min().min()) / (widths.max().max() - widths.min().min())
-        
+    # ---- draw chord diagram ----        
     for src in channel_order:        # columns = sources
         for tgt in channel_order:    # rows = targets
             if src == tgt: # skip self

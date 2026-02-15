@@ -3,7 +3,6 @@ import numpy as np
 import pandas as pd
 from .granger import make_stationary
 
-
 def load_eeg(filepath, resample=None, preload=True):
     """
     Load a EEG file (.set).
@@ -44,12 +43,6 @@ def load_eeg(filepath, resample=None, preload=True):
         channels[ch] = name # e.g. {0:"Fp1", 1:"Fp2", etc.}
     
     return eeg_data, sfreq, channels
-
-
-
-
-import numpy as np
-
 
 def split_epochs(eeg_data, n_epochs=10):
     """

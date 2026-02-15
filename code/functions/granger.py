@@ -9,24 +9,27 @@ import matplotlib.pyplot as plt
 plt.ion() # plt.show() not blocking execution
 
 #%% ref: https://phdinds-aim.github.io/time_series_handbook/04_GrangerCausality/04_GrangerCausality.html
-def granger_ecn(epochs, channels, maxlag=4, alpha=0.05, current_subject=None):
+def granger_ecn(epochs, channels, maxlag=4, current_subject=None, ic=False):
     """
-    Compute Granger ECN for one subject by aggregating across epochs.
+    Compute Granger ECN for one subject by aggregating across epochs 
+    (mean p-values are returned).
 
     Parameters
     ----------
     epochs : ndarray, shape (n_epochs, n_channels, n_samples)
     channels : dict, channel numbers mapped to names (e.g. {0:"Fp1", 1:"Fp2", etc.})
     maxlag : int
-    alpha : float
     current_subject : dict, if not None, it means that the stationarity was already checked 
         during preprocessing. So stationarity check is skipped when not necessary.
         Default at None.
+    ic : bool, if True the information criteria for the VAR model are computed to select the 
+        number of lags. Plots are showed.
+        Default at False.
 
     Returns
     -------
     mean_pvals : dict
-        maps each 'up-to-lag' to its pd.DataFrame of causal pvals (n_channels, n_channels)
+        maps each lag (key) to its pd.DataFrame of causal pvals (value, shape:(n_channels, n_channels))
     """
 
     ch_names = [name for ch,name in channels.items()] # Fp1, Fp2, F3, F4, C3, C4, P3, P4, O1, O2, F7, F8, T3, T4, T5, T6, Fz, Cz, Pz
@@ -49,9 +52,10 @@ def granger_ecn(epochs, channels, maxlag=4, alpha=0.05, current_subject=None):
             if curr_epoch_report['n_diffs'] > 0: # not stationary!!! differencing was applied in this epoch
                 epoch_df, n_diffs, _ = make_stationary(epoch_df) 
 
-        # 2. select maxlag from multivariate time series********per ora maxlag=4 fisso come paper
-        # print('selecting maxlag...')
-        # select_p(epoch_df) # select the VAR (Vector AutoRegressive) model order p (i.e. maxlag) from plots' elbows
+        # 2. select maxlag from multivariate time series
+        if ic:
+            print('selecting maxlag...')
+            select_p(epoch_df) # select the VAR (Vector AutoRegressive) model order p (i.e. maxlag) from plots' elbows
 
         # 3. apply Granger
         print('... ***computing Granger***', end=', ', flush=True)
@@ -65,13 +69,10 @@ def granger_ecn(epochs, channels, maxlag=4, alpha=0.05, current_subject=None):
     for lag,res in all_pvals_df.items():
         mean_pvals[lag] = sum(res) / len(res)
 
-    # 5. ECN adjacency (binary)
-    #binary_adj = (mean_pvals < alpha).astype(int)
-
-    return mean_pvals#, binary_adj
+    return mean_pvals
 
 
-# stazionarietà (Granger assumption)
+# stationarity (Granger assumption)
 def make_stationary(series_df, verbose=True):
     """
     Make all channels in an epoch stationary.
@@ -192,7 +193,7 @@ def kpss_test(data_df):
 # VAR model processing
 def select_p(data_df):
     """
-    Show metrics to select the order p of the VAR model (i.e. number of lags),
+    Plot metrics to select the order p of the VAR model (i.e. number of lags),
     e.g. when the curves do an elbow.
     Metrics correspond to different multivariate information criteria (AIC, BIC, HQIC), and FPE.
 
@@ -238,7 +239,7 @@ def granger_causation_matrix(data, variables, maxlag, test = 'ssr_chi2test', ver
     Returns
     -----------
     df (DataFrame) : dict 
-        maps each 'up-to-lag' to its table of resulting p-values (columns: X, rows: Y).
+        maps each lag to its table of resulting p-values (columns: X, rows: Y).
     """
     df={}
     for lag in range(1, maxlag+1):
@@ -251,7 +252,7 @@ def granger_causation_matrix(data, variables, maxlag, test = 'ssr_chi2test', ver
             test_result = grangercausalitytests(data[[r, c]], maxlag, verbose=False)
             p_values = [round(test_result[i+1][0][test][1],4) for i in range(maxlag)]
             if verbose: print(f'Y = {r}, X = {c}, P Values = {p_values}')
-            #min_p_value = np.min(p_values)
+            #min_p_value = np.min(p_values) # (Luca: do not aggregate lags now!)
             for lag in range(1, maxlag+1):
                 df[lag].loc[r, c] = p_values[lag-1]
 
