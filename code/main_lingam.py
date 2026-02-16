@@ -59,13 +59,13 @@ print('--- VAR-LiNGAM causality ---')
 results = load_data("results/20260215_154600_ling-bootstrap_minefx0_2_plots_th80_prob95_agg1/data/saved_data.pkl")
 
 #%% aggregate ECNs for each group
-min_prob = 0.80 # ~alpha=0.05
-res_groups = aggregate_lingam2(results, min_prob) # strengths and probabilities
+min_prob = 0.95 # ~alpha=0.05
+res_groups = aggregate_lingam(results, min_prob) # strengths and probabilities
 
 #%% plot ECNs for each group
 ch_names = results[0]["AD"]["strengths"][0].columns # remind indexes' names = columns' names
 pos = {"CN":0,"FTD":1,"AD":2}
-thresh_pct=0 # strengths threshold (percentile)
+thresh_pct=85 # strengths threshold (percentile)
 
 all_strengths, all_n_probs = [], []
 for group, ecn in res_groups.items(): 
