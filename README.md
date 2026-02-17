@@ -1,8 +1,4 @@
-# Project\_AC
-
 Project for the course Affective Computing (AA. 2025/26)
-
-
 
 # Causal ECN Estimation for Brain Disorders from EEGs
 
