@@ -107,19 +107,5 @@ def load_data(path):
 
     if not isinstance(data, dict):
         raise ValueError(f"Expected a dict in pickle file, got {type(data)} instead.")
-
-    # # general
-    # channels = data["channels"]
-
-    # # granger
-    # res_granger = data["granger"]
-    # gran_pvals = res_granger["gran_pvals"]
-    # gran_strength = res_granger["gran_strength"]
-    # gran_bin_adj = res_granger["gran_bin_adj"]
-
-    # # lingam
-    # res_lingam = data["lingam"]
-    # ling_strength = res_lingam["ling_strength"]
-    # ling_bin_adj = res_lingam["ling_bin_adj"]
     
-    return data #channels, gran_pvals, gran_strength, gran_bin_adj, ling_strength, ling_bin_adj
+    return data 
