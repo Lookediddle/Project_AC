@@ -3,3 +3,5 @@ dataset/
 # all saved experiment data (pickle): could be really large!
 code/example_ref/*
 code/results/old/*
+# old stuff
+code/old_main.py
